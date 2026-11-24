@@ -102,6 +102,8 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 140, y: 24 });
+  const [isPanning, setIsPanning] = useState(false);
   const [selectedCompId, setSelectedCompId] = useState<string | null>(null);
   const [connectingFrom, setConnectingFrom] = useState<{
     componentId: string;
@@ -139,6 +141,15 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
     offsetY: number;
   } | null>(null);
 
+  const panRef = useRef<{
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressNextClickRef = useRef(false);
+
   const probeBus: CpuBusState = useMemo(
     () => ({
       address: probeAddr,
@@ -162,12 +173,50 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
     if (!svg) return { x: 0, y: 0 };
     const rect = svg.getBoundingClientRect();
     return {
-      x: (clientX - rect.left) / zoom,
-      y: (clientY - rect.top) / zoom,
+      x: (clientX - rect.left - pan.x) / zoom,
+      y: (clientY - rect.top - pan.y) / zoom,
     };
   };
 
+  const zoomAtPoint = (nextZoom: number, screenX: number, screenY: number) => {
+    const clamped = Math.min(2.2, Math.max(0.45, Number(nextZoom.toFixed(3))));
+    if (clamped === zoom) return;
+    const worldX = (screenX - pan.x) / zoom;
+    const worldY = (screenY - pan.y) / zoom;
+    setZoom(clamped);
+    setPan({
+      x: screenX - worldX * clamped,
+      y: screenY - worldY * clamped,
+    });
+  };
+
+  const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    zoomAtPoint(zoom * factor, screenX, screenY);
+  };
+
+  const handleCanvasPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    // Left-click on empty canvas background or middle-click anywhere starts map panning
+    if (e.button === 1 || (e.button === 0 && !dragRef.current)) {
+      panRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        originX: pan.x,
+        originY: pan.y,
+        moved: false,
+      };
+      setIsPanning(true);
+      svgRef.current?.setPointerCapture?.(e.pointerId);
+    }
+  };
+
   const handleStartDrag = (e: React.PointerEvent, componentId: string) => {
+    if (e.button === 1) return; // Allow middle-click pan even over chips
     e.stopPropagation();
     const comp = components.find((c) => c.id === componentId);
     if (!comp) return;
@@ -182,19 +231,40 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (panRef.current) {
+      const dx = e.clientX - panRef.current.startX;
+      const dy = e.clientY - panRef.current.startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        panRef.current.moved = true;
+      }
+      setPan({
+        x: panRef.current.originX + dx,
+        y: panRef.current.originY + dy,
+      });
+      return;
+    }
+
     const pt = clientToSvg(e.clientX, e.clientY);
     if (connectingFrom) {
       setCursorSvg(pt);
     }
     if (dragRef.current) {
-      const snappedX = Math.max(10, Math.round((pt.x - dragRef.current.offsetX) / 10) * 10);
-      const snappedY = Math.max(14, Math.round((pt.y - dragRef.current.offsetY) / 10) * 10);
+      const snappedX = Math.round((pt.x - dragRef.current.offsetX) / 10) * 10;
+      const snappedY = Math.round((pt.y - dragRef.current.offsetY) / 10) * 10;
       onMoveComponent(dragRef.current.compId, snappedX, snappedY);
     }
   };
 
   const handlePointerUp = () => {
     dragRef.current = null;
+    if (panRef.current) {
+      const wasMoved = panRef.current.moved;
+      panRef.current = null;
+      setIsPanning(false);
+      if (wasMoved) {
+        suppressNextClickRef.current = true;
+      }
+    }
   };
 
   const handlePinClick = (
@@ -251,6 +321,10 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
   };
 
   const handleCanvasClick = () => {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
     setConnectingFrom(null);
     setSelectedCompId(null);
     setWireWarning(null);
@@ -282,13 +356,15 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      {/* Main Full-Bleed SVG Viewport */}
-      <div className="relative flex-1 overflow-auto bg-zinc-50 dark:bg-[#121214]">
+      {/* Main Full-Bleed Map Viewport (Pan & Scroll-Zoom) */}
+      <div className="relative flex-1 overflow-hidden bg-zinc-50 dark:bg-[#121214]">
         <svg
           ref={svgRef}
-          width={Math.max(1060, 1100 * zoom)}
-          height={Math.max(580, 600 * zoom)}
-          className="block select-none mx-auto"
+          className={`w-full h-full block select-none ${
+            isPanning ? 'cursor-grabbing' : 'cursor-grab'
+          }`}
+          onWheel={handleWheel}
+          onPointerDown={handleCanvasPointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onClick={handleCanvasClick}
@@ -297,9 +373,10 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
           <defs>
             <pattern
               id="drafting-grid"
-              width={20 * zoom}
-              height={20 * zoom}
+              width={20}
+              height={20}
               patternUnits="userSpaceOnUse"
+              patternTransform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}
             >
               <circle cx={1} cy={1} r={1.1} fill={dark ? '#27272a' : '#d4d4d8'} />
             </pattern>
@@ -307,7 +384,7 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
 
           <rect width="100%" height="100%" fill="url(#drafting-grid)" />
 
-          <g transform={`scale(${zoom})`}>
+          <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
             {/* Wires Layer */}
             {wires.map((w, idx) => {
               const p1 = getAbsolutePinPos(components, w.from);
@@ -608,9 +685,12 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
 
           <button
             type="button"
-            onClick={() => setZoom((z) => Math.max(0.65, Number((z - 0.1).toFixed(2))))}
+            onClick={() => {
+              const rect = svgRef.current?.getBoundingClientRect();
+              zoomAtPoint(zoom - 0.15, (rect?.width ?? 800) / 2, (rect?.height ?? 500) / 2);
+            }}
             className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
-            title="Alejar"
+            title="Alejar (también con rueda del ratón)"
           >
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
@@ -619,17 +699,23 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
           </span>
           <button
             type="button"
-            onClick={() => setZoom((z) => Math.min(1.4, Number((z + 0.1).toFixed(2))))}
+            onClick={() => {
+              const rect = svgRef.current?.getBoundingClientRect();
+              zoomAtPoint(zoom + 0.15, (rect?.width ?? 800) / 2, (rect?.height ?? 500) / 2);
+            }}
             className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
-            title="Acercar"
+            title="Acercar (también con rueda del ratón)"
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
-            onClick={() => setZoom(1)}
+            onClick={() => {
+              setZoom(1);
+              setPan({ x: 140, y: 24 });
+            }}
             className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
-            title="Restablecer zoom"
+            title="Centrar vista y restablecer zoom"
           >
             <RotateCcw className="w-3 h-3" />
           </button>
