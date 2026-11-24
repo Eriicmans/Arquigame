@@ -1,0 +1,115 @@
+{
+  "id": "1-1",
+  "levelId": 1,
+  "order": 1,
+  "difficulty": "tutorial",
+  "assistMode": "guided",
+  "title": "Subnivel 1.1 · Primer Mapa de Memoria (8085 + 74138)",
+  "subtitle": "Decodificación completa en bloques de 8 kB: UVPROM en reset y SRAM consecutiva",
+  "sourceRef": "Basado en 4-memorias.pdf y Examen 2025-01-07 (Intel 8085, 74AHCT138)",
+  "mechanics": ["wiring", "memoryMap"],
+  "briefing": {
+    "statement": "Diseña la decodificación de direcciones de un sistema basado en Intel 8085 (bus de direcciones de 16 bits A15..A0, vector de reset en 0000h y señal IO/M = 0 para accesos a memoria). Debes mapear una UVPROM de 8 kB al inicio del mapa (0000h) y una SRAM de 8 kB inmediatamente después, dejando el resto del espacio de memoria vacío y evitando que las memorias respondan en ciclos de puertos E/S (IO/M = 1).",
+    "objectives": [
+      "Configura el decodificador U1 (74AHCT138) para dividir los 64 kB en bloques de 8 kB usando A15, A14 y A13.",
+      "Habilita el 74AHCT138 únicamente en ciclos de memoria (IO/M = 0) fijando correctamente /E1, /E2 y E3.",
+      "Conecta la UVPROM 8 kB (solo lectura) en 0000h–1FFFh y la SRAM 8 kB (lectura/escritura) en 2000h–3FFFh.",
+      "Completa la tabla del mapa de memoria en hexadecimal (incluyendo la zona VACÍA 4000h–FFFFh)."
+    ],
+    "mermaid": "flowchart LR\n  CPU[\"Intel 8085 (A15..A13, IO/M, /RD, /WR)\"] -->|\"A13..A15 + IO/M\"| DEC[\"U1: 74AHCT138 (3 a 8)\"]\n  DEC -->|\"/Y0 (0000h-1FFFh)\"| ROM[\"U2: UVPROM 8 kB (/CS)\"]\n  DEC -->|\"/Y1 (2000h-3FFFh)\"| RAM[\"U3: SRAM 8 kB (/CS)\"]\n  CPU -->|\"/RD\"| ROM\n  CPU -->|\"/RD y /WR\"| RAM",
+    "hints": [
+      "Cada chip de 8 kB utiliza 13 líneas internas de dirección (A0..A12, ya conectadas en modo guiado). Por tanto, las entradas de selección del 74AHCT138 son A0 ← A13, A1 ← A14 y A2 ← A15.",
+      "El 74AHCT138 solo se activa cuando /E1 = 0, /E2 = 0 y E3 = 1. Conecta IO/M a /E1 (o /E2), GND al otro habilitador activo en bajo y VCC a E3.",
+      "Con A15 A14 A13 = 000 (0000h–1FFFh) se activa /Y0 → UVPROM (/CS). Con 001 (2000h–3FFFh) se activa /Y1 → SRAM (/CS). No olvides /OE ← /RD en ambas y /WE ← /WR en la SRAM."
+    ]
+  },
+  "circuit": {
+    "cpuProfile": "8085",
+    "components": [
+      { "id": "cpu", "type": "CPU_8085", "label": "CPU: Intel 8085", "x": 28, "y": 40, "locked": true },
+      { "id": "dec1", "type": "IC_74138", "label": "U1: 74AHCT138", "x": 285, "y": 40, "locked": false },
+      { "id": "vcc1", "type": "POWER_VCC", "label": "+5V", "x": 295, "y": 325, "locked": false },
+      { "id": "gnd1", "type": "POWER_GND", "label": "GND", "x": 385, "y": 325, "locked": false },
+      { "id": "rom1", "type": "MEM_UVPROM", "label": "U2: UVPROM 8 kB", "x": 545, "y": 40, "locked": false, "props": { "sizeKB": 8, "dataWidth": 8 } },
+      { "id": "ram1", "type": "MEM_SRAM", "label": "U3: SRAM 8 kB", "x": 545, "y": 240, "locked": false, "props": { "sizeKB": 8, "dataWidth": 8 } }
+    ],
+    "palette": [
+      { "type": "IC_74138", "label": "74AHCT138 (3→8)" },
+      { "type": "IC_74139", "label": "74139 (2→4)" },
+      { "type": "GATE_AND", "label": "Puerta AND (2 ent.)" },
+      { "type": "GATE_OR", "label": "Puerta OR (2 ent.)" },
+      { "type": "GATE_NOT", "label": "Inversor NOT" },
+      { "type": "GATE_NAND", "label": "Puerta NAND" },
+      { "type": "GATE_NOR", "label": "Puerta NOR" },
+      { "type": "MEM_UVPROM", "label": "UVPROM 8 kB (8k×8)", "props": { "sizeKB": 8, "dataWidth": 8 } },
+      { "type": "MEM_SRAM", "label": "SRAM 8 kB (8k×8)", "props": { "sizeKB": 8, "dataWidth": 8 } },
+      { "type": "MEM_FLASH", "label": "Flash 16 kB", "props": { "sizeKB": 16, "dataWidth": 8 } },
+      { "type": "POWER_VCC", "label": "VCC (+5V / 1)" },
+      { "type": "POWER_GND", "label": "GND (0V / 0)" }
+    ],
+    "fixedWires": [
+      { "from": "cpu.A0..A12", "to": "rom1.ADDR", "locked": true },
+      { "from": "cpu.D0..D7", "to": "rom1.DATA", "locked": true },
+      { "from": "cpu.A0..A12", "to": "ram1.ADDR", "locked": true },
+      { "from": "cpu.D0..D7", "to": "ram1.DATA", "locked": true }
+    ],
+    "referenceNetlist": [
+      { "from": "cpu.A0..A12", "to": "rom1.ADDR" },
+      { "from": "cpu.D0..D7", "to": "rom1.DATA" },
+      { "from": "cpu.A0..A12", "to": "ram1.ADDR" },
+      { "from": "cpu.D0..D7", "to": "ram1.DATA" },
+      { "from": "cpu.A13", "to": "dec1.A0" },
+      { "from": "cpu.A14", "to": "dec1.A1" },
+      { "from": "cpu.A15", "to": "dec1.A2" },
+      { "from": "cpu.IO/M", "to": "dec1./E1" },
+      { "from": "gnd1.GND", "to": "dec1./E2" },
+      { "from": "vcc1.VCC", "to": "dec1.E3" },
+      { "from": "dec1./Y0", "to": "rom1./CS" },
+      { "from": "cpu./RD", "to": "rom1./OE" },
+      { "from": "dec1./Y1", "to": "ram1./CS" },
+      { "from": "cpu./RD", "to": "ram1./OE" },
+      { "from": "cpu./WR", "to": "ram1./WE" }
+    ]
+  },
+  "memoryMapTask": {
+    "addressWidth": 16,
+    "requireTableCompletion": true,
+    "expectedRegions": [
+      {
+        "id": "reg-rom",
+        "label": "UVPROM 8 kB (Programa / Reset)",
+        "chipType": "MEM_UVPROM",
+        "sizeKB": 8,
+        "startHex": "0x0000",
+        "endHex": "0x1FFF",
+        "space": "memory",
+        "access": "R",
+        "isMirror": false,
+        "requireIoIsolation": true
+      },
+      {
+        "id": "reg-ram",
+        "label": "SRAM 8 kB (Datos)",
+        "chipType": "MEM_SRAM",
+        "sizeKB": 8,
+        "startHex": "0x2000",
+        "endHex": "0x3FFF",
+        "space": "memory",
+        "access": "RW",
+        "isMirror": false,
+        "requireIoIsolation": true
+      },
+      {
+        "id": "reg-empty",
+        "label": "Zona Libre (VACÍO)",
+        "chipType": "EMPTY",
+        "sizeKB": 48,
+        "startHex": "0x4000",
+        "endHex": "0xFFFF",
+        "space": "memory",
+        "access": "NONE",
+        "isMirror": false
+      }
+    ]
+  }
+}

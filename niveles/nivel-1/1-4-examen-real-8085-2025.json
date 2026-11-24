@@ -1,0 +1,162 @@
+{
+  "id": "1-4",
+  "levelId": 1,
+  "order": 4,
+  "difficulty": "examen",
+  "assistMode": "exam",
+  "title": "Subnivel 1.4 · Examen Real 2025-01-07 (Intel 8085)",
+  "subtitle": "Ejercicio 3 completo sin ayudas: UVPROM 16k×4 en paralelo y 3 SRAM con zona espejo",
+  "sourceRef": "Examen 2025-01-07 (Ejercicio 3 — Intel 8085, 64 kB)",
+  "mechanics": ["wiring", "memoryMap"],
+  "briefing": {
+    "statement": "Ejercicio de examen (2025-01-07). Diseña desde cero la decodificación de direcciones de un sistema basado en Intel 8085 (64 kB, A15..A0, D7..D0, IO/M = 0 para memoria, /RD, /WR, vector de reset en 0000h) cumpliendo el siguiente mapa:\n• 0000h–3FFFh (16 kB): UVPROM formada por 2 chips 16k × 4 bit en paralelo (D0..D3 y D4..D7).\n• 4000h–5FFFh (8 kB): SRAM 0 (8k × 8).\n• 6000h–7FFFh (8 kB): SRAM 1 (8k × 8).\n• 8000h–BFFFh (16 kB lógicos, 8 kB físicos en espejo): SRAM 2 (8k × 8), donde A000h–BFFFh es imagen de 8000h–9FFFh.\n• C000h–FFFFh (16 kB): VACÍO.\nAsegura el aislamiento respecto a ciclos de E/S (IO/M = 1) y completa la tabla del mapa de memoria.",
+    "objectives": [
+      "Coloca y cablea el decodificador 74AHCT138, las puertas lógicas necesarias, las fuentes de alimentación y los 5 chips de memoria desde la paleta.",
+      "Expande el ancho de datos de la UVPROM (0000h–3FFFh) combinando dos chips 16k×4 (D0..D3 y D4..D7) habilitados en bloques contiguos.",
+      "Mapea SRAM 0 (4000h–5FFFh), SRAM 1 (6000h–7FFFh) y SRAM 2 (8000h–9FFFh con espejo en A000h–BFFFh), dejando C000h–FFFFh vacío.",
+      "Conecta todas las líneas de dirección, datos y control (/RD, /WR, IO/M) y completa el mapa de memoria completo."
+    ],
+    "hints": []
+  },
+  "circuit": {
+    "cpuProfile": "8085",
+    "components": [
+      { "id": "cpu", "type": "CPU_8085", "label": "CPU: Intel 8085", "x": 28, "y": 40, "locked": true },
+      { "id": "dec1", "type": "IC_74138", "label": "U1: 74AHCT138", "x": 270, "y": 40, "locked": false },
+      { "id": "vcc1", "type": "POWER_VCC", "label": "+5V", "x": 275, "y": 335, "locked": false },
+      { "id": "gnd1", "type": "POWER_GND", "label": "GND", "x": 365, "y": 335, "locked": false },
+      { "id": "and1", "type": "GATE_AND", "label": "U2A: AND (/Y0·/Y1)", "x": 500, "y": 40, "locked": false },
+      { "id": "and2", "type": "GATE_AND", "label": "U2B: AND (/Y4·/Y5)", "x": 500, "y": 470, "locked": false },
+      { "id": "rom_lo", "type": "MEM_UVPROM", "label": "U3: UVPROM 16k×4 (Low)", "x": 700, "y": 20, "locked": false, "props": { "sizeKB": 16, "dataWidth": 4, "dataSlice": "low" } },
+      { "id": "rom_hi", "type": "MEM_UVPROM", "label": "U4: UVPROM 16k×4 (High)", "x": 700, "y": 180, "locked": false, "props": { "sizeKB": 16, "dataWidth": 4, "dataSlice": "high" } },
+      { "id": "ram0", "type": "MEM_SRAM", "label": "U5: SRAM 0 (8k×8)", "x": 700, "y": 340, "locked": false, "props": { "sizeKB": 8, "dataWidth": 8, "dataSlice": "full" } },
+      { "id": "ram1", "type": "MEM_SRAM", "label": "U6: SRAM 1 (8k×8)", "x": 700, "y": 520, "locked": false, "props": { "sizeKB": 8, "dataWidth": 8, "dataSlice": "full" } },
+      { "id": "ram2", "type": "MEM_SRAM", "label": "U7: SRAM 2 (8k×8)", "x": 700, "y": 700, "locked": false, "props": { "sizeKB": 8, "dataWidth": 8, "dataSlice": "full" } }
+    ],
+    "palette": [
+      { "type": "IC_74138", "label": "74AHCT138 (3→8)" },
+      { "type": "IC_74139", "label": "74139 (2→4)" },
+      { "type": "GATE_AND", "label": "Puerta AND (2 ent.)" },
+      { "type": "GATE_OR", "label": "Puerta OR (2 ent.)" },
+      { "type": "GATE_NOT", "label": "Inversor NOT" },
+      { "type": "MEM_UVPROM", "label": "UVPROM 16k×4 (D0..D3)", "props": { "sizeKB": 16, "dataWidth": 4, "dataSlice": "low" } },
+      { "type": "MEM_UVPROM", "label": "UVPROM 16k×4 (D4..D7)", "props": { "sizeKB": 16, "dataWidth": 4, "dataSlice": "high" } },
+      { "type": "MEM_SRAM", "label": "SRAM 8 kB (8k×8)", "props": { "sizeKB": 8, "dataWidth": 8, "dataSlice": "full" } },
+      { "type": "POWER_VCC", "label": "VCC (+5V / 1)" },
+      { "type": "POWER_GND", "label": "GND (0V / 0)" }
+    ],
+    "fixedWires": [],
+    "referenceNetlist": [
+      { "from": "cpu.A0..A12", "to": "rom_lo.ADDR" },
+      { "from": "cpu.D0..D7", "to": "rom_lo.DATA" },
+      { "from": "cpu.A0..A12", "to": "rom_hi.ADDR" },
+      { "from": "cpu.D0..D7", "to": "rom_hi.DATA" },
+      { "from": "cpu.A0..A12", "to": "ram0.ADDR" },
+      { "from": "cpu.D0..D7", "to": "ram0.DATA" },
+      { "from": "cpu.A0..A12", "to": "ram1.ADDR" },
+      { "from": "cpu.D0..D7", "to": "ram1.DATA" },
+      { "from": "cpu.A0..A12", "to": "ram2.ADDR" },
+      { "from": "cpu.D0..D7", "to": "ram2.DATA" },
+      { "from": "cpu.A13", "to": "dec1.A0" },
+      { "from": "cpu.A14", "to": "dec1.A1" },
+      { "from": "cpu.A15", "to": "dec1.A2" },
+      { "from": "cpu.IO/M", "to": "dec1./E1" },
+      { "from": "gnd1.GND", "to": "dec1./E2" },
+      { "from": "vcc1.VCC", "to": "dec1.E3" },
+      { "from": "dec1./Y0", "to": "and1.IN1" },
+      { "from": "dec1./Y1", "to": "and1.IN2" },
+      { "from": "and1.OUT", "to": "rom_lo./CS" },
+      { "from": "and1.OUT", "to": "rom_hi./CS" },
+      { "from": "cpu./RD", "to": "rom_lo./OE" },
+      { "from": "cpu./RD", "to": "rom_hi./OE" },
+      { "from": "dec1./Y2", "to": "ram0./CS" },
+      { "from": "cpu./RD", "to": "ram0./OE" },
+      { "from": "cpu./WR", "to": "ram0./WE" },
+      { "from": "dec1./Y3", "to": "ram1./CS" },
+      { "from": "cpu./RD", "to": "ram1./OE" },
+      { "from": "cpu./WR", "to": "ram1./WE" },
+      { "from": "dec1./Y4", "to": "and2.IN1" },
+      { "from": "dec1./Y5", "to": "and2.IN2" },
+      { "from": "and2.OUT", "to": "ram2./CS" },
+      { "from": "cpu./RD", "to": "ram2./OE" },
+      { "from": "cpu./WR", "to": "ram2./WE" }
+    ]
+  },
+  "memoryMapTask": {
+    "addressWidth": 16,
+    "requireTableCompletion": true,
+    "expectedRegions": [
+      {
+        "id": "reg-rom",
+        "label": "UVPROM 16 kB (2 × 16k×4 en paralelo)",
+        "chipType": "MEM_UVPROM",
+        "sizeKB": 16,
+        "startHex": "0x0000",
+        "endHex": "0x3FFF",
+        "space": "memory",
+        "access": "R",
+        "isMirror": false,
+        "requireIoIsolation": true
+      },
+      {
+        "id": "reg-ram0",
+        "label": "SRAM 0 (8 kB)",
+        "chipType": "MEM_SRAM",
+        "sizeKB": 8,
+        "startHex": "0x4000",
+        "endHex": "0x5FFF",
+        "space": "memory",
+        "access": "RW",
+        "isMirror": false,
+        "requireIoIsolation": true
+      },
+      {
+        "id": "reg-ram1",
+        "label": "SRAM 1 (8 kB)",
+        "chipType": "MEM_SRAM",
+        "sizeKB": 8,
+        "startHex": "0x6000",
+        "endHex": "0x7FFF",
+        "space": "memory",
+        "access": "RW",
+        "isMirror": false,
+        "requireIoIsolation": true
+      },
+      {
+        "id": "reg-ram2",
+        "label": "SRAM 2 (8 kB físicos)",
+        "chipType": "MEM_SRAM",
+        "sizeKB": 8,
+        "startHex": "0x8000",
+        "endHex": "0x9FFF",
+        "space": "memory",
+        "access": "RW",
+        "isMirror": false,
+        "requireIoIsolation": true
+      },
+      {
+        "id": "reg-ram2-mirror",
+        "label": "SRAM 2 (Espejo / Imagen de 8000h–9FFFh)",
+        "chipType": "MEM_SRAM",
+        "sizeKB": 8,
+        "startHex": "0xA000",
+        "endHex": "0xBFFF",
+        "space": "memory",
+        "access": "RW",
+        "isMirror": true,
+        "requireIoIsolation": true
+      },
+      {
+        "id": "reg-empty",
+        "label": "Zona Libre (VACÍO)",
+        "chipType": "EMPTY",
+        "sizeKB": 16,
+        "startHex": "0xC000",
+        "endHex": "0xFFFF",
+        "space": "memory",
+        "access": "NONE",
+        "isMirror": false
+      }
+    ]
+  }
+}

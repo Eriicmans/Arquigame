@@ -1,0 +1,141 @@
+{
+  "id": "1-2",
+  "levelId": 1,
+  "order": 2,
+  "difficulty": "medio",
+  "assistMode": "guided",
+  "title": "Subnivel 1.2 · Decodificación Parcial y Espejos",
+  "subtitle": "Zonas imagen en Intel 8085 combinando salidas del 74AHCT138 con puerta AND",
+  "sourceRef": "Basado en 4-memorias.pdf y memorias_problemas.pdf (Intel 8085, 74AHCT138)",
+  "mechanics": ["wiring", "memoryMap"],
+  "briefing": {
+    "statement": "En un sistema Intel 8085 con bus de direcciones de 16 bits (A15..A0) y señal IO/M = 0 para memoria, queremos mapear una UVPROM de 8 kB en 0000h–1FFFh y una SRAM física de 8 kB ocupando un bloque lógico de 16 kB entre 8000h y BFFFh mediante decodificación parcial (generando una zona imagen o espejo). Para combinar las salidas activas en nivel bajo /Y4 y /Y5 del 74AHCT138 hacia /CS de la SRAM, recuerda las leyes de De Morgan: una puerta AND en lógica positiva equivale a una OR en lógica negativa (/Y4 · /Y5 = 0 cuando /Y4 = 0 o /Y5 = 0).",
+    "objectives": [
+      "Configura el decodificador U1 (74AHCT138) con A13..A15 y habilítalo solo en ciclos de memoria (IO/M = 0).",
+      "Conecta la UVPROM de 8 kB (solo lectura) en el bloque /Y0 (0000h–1FFFh).",
+      "Combina /Y4 (8000h–9FFFh) y /Y5 (A000h–BFFFh) mediante la puerta AND (U2) para atacar /CS de la SRAM de 8 kB.",
+      "Completa el mapa de memoria de 64 kB identificando las zonas vacías, la SRAM principal (8000h–9FFFh) y su zona espejo (A000h–BFFFh)."
+    ],
+    "mermaid": "flowchart LR\n  CPU[\"Intel 8085 (A15..A13, IO/M, /RD, /WR)\"] -->|\"A13..A15 + IO/M\"| DEC[\"U1: 74AHCT138 (3 a 8)\"]\n  DEC -->|\"/Y0 (0000h-1FFFh)\"| ROM[\"U3: UVPROM 8 kB (/CS)\"]\n  DEC -->|\"/Y4 (8000h-9FFFh)\"| AND[\"U2: Puerta AND\"]\n  DEC -->|\"/Y5 (A000h-BFFFh)\"| AND\n  AND -->|\"/Y4 AND /Y5\"| RAM[\"U4: SRAM 8 kB (/CS)\"]",
+    "hints": [
+      "A13..A15 seleccionan bloques de 8 kB: /Y0 = 0000h–1FFFh, /Y4 = 8000h–9FFFh y /Y5 = A000h–BFFFh.",
+      "Como /Y4 y /Y5 son activas a nivel bajo (0), conectarlas a una puerta AND hace que /CS = 0 siempre que cualquiera de las dos esté activa (/Y4 = 0 o /Y5 = 0).",
+      "En el mapa de memoria, la SRAM física de 8 kB aparece primero en 8000h–9FFFh (original) y se repite idéntica en A000h–BFFFh (espejo, porque A13 queda sin decodificar entre ambos bloques)."
+    ]
+  },
+  "circuit": {
+    "cpuProfile": "8085",
+    "components": [
+      { "id": "cpu", "type": "CPU_8085", "label": "CPU: Intel 8085", "x": 28, "y": 40, "locked": true },
+      { "id": "dec1", "type": "IC_74138", "label": "U1: 74AHCT138", "x": 270, "y": 40, "locked": false },
+      { "id": "and1", "type": "GATE_AND", "label": "U2: Puerta AND", "x": 425, "y": 235, "locked": false },
+      { "id": "vcc1", "type": "POWER_VCC", "label": "+5V", "x": 270, "y": 325, "locked": false },
+      { "id": "gnd1", "type": "POWER_GND", "label": "GND", "x": 350, "y": 325, "locked": false },
+      { "id": "rom1", "type": "MEM_UVPROM", "label": "U3: UVPROM 8 kB", "x": 585, "y": 40, "locked": false, "props": { "sizeKB": 8, "dataWidth": 8 } },
+      { "id": "ram1", "type": "MEM_SRAM", "label": "U4: SRAM 8 kB", "x": 585, "y": 240, "locked": false, "props": { "sizeKB": 8, "dataWidth": 8 } }
+    ],
+    "palette": [
+      { "type": "IC_74138", "label": "74AHCT138 (3→8)" },
+      { "type": "IC_74139", "label": "74139 (2→4)" },
+      { "type": "GATE_AND", "label": "Puerta AND (2 ent.)" },
+      { "type": "GATE_OR", "label": "Puerta OR (2 ent.)" },
+      { "type": "GATE_NOT", "label": "Inversor NOT" },
+      { "type": "GATE_NAND", "label": "Puerta NAND" },
+      { "type": "GATE_NOR", "label": "Puerta NOR" },
+      { "type": "MEM_UVPROM", "label": "UVPROM 8 kB (8k×8)", "props": { "sizeKB": 8, "dataWidth": 8 } },
+      { "type": "MEM_SRAM", "label": "SRAM 8 kB (8k×8)", "props": { "sizeKB": 8, "dataWidth": 8 } },
+      { "type": "MEM_FLASH", "label": "Flash 16 kB", "props": { "sizeKB": 16, "dataWidth": 8 } },
+      { "type": "POWER_VCC", "label": "VCC (+5V / 1)" },
+      { "type": "POWER_GND", "label": "GND (0V / 0)" }
+    ],
+    "fixedWires": [
+      { "from": "cpu.A0..A12", "to": "rom1.ADDR", "locked": true },
+      { "from": "cpu.D0..D7", "to": "rom1.DATA", "locked": true },
+      { "from": "cpu.A0..A12", "to": "ram1.ADDR", "locked": true },
+      { "from": "cpu.D0..D7", "to": "ram1.DATA", "locked": true }
+    ],
+    "referenceNetlist": [
+      { "from": "cpu.A0..A12", "to": "rom1.ADDR" },
+      { "from": "cpu.D0..D7", "to": "rom1.DATA" },
+      { "from": "cpu.A0..A12", "to": "ram1.ADDR" },
+      { "from": "cpu.D0..D7", "to": "ram1.DATA" },
+      { "from": "cpu.A13", "to": "dec1.A0" },
+      { "from": "cpu.A14", "to": "dec1.A1" },
+      { "from": "cpu.A15", "to": "dec1.A2" },
+      { "from": "cpu.IO/M", "to": "dec1./E1" },
+      { "from": "gnd1.GND", "to": "dec1./E2" },
+      { "from": "vcc1.VCC", "to": "dec1.E3" },
+      { "from": "dec1./Y0", "to": "rom1./CS" },
+      { "from": "cpu./RD", "to": "rom1./OE" },
+      { "from": "dec1./Y4", "to": "and1.IN1" },
+      { "from": "dec1./Y5", "to": "and1.IN2" },
+      { "from": "and1.OUT", "to": "ram1./CS" },
+      { "from": "cpu./RD", "to": "ram1./OE" },
+      { "from": "cpu./WR", "to": "ram1./WE" }
+    ]
+  },
+  "memoryMapTask": {
+    "addressWidth": 16,
+    "requireTableCompletion": true,
+    "expectedRegions": [
+      {
+        "id": "reg-rom",
+        "label": "UVPROM 8 kB (Programa / Reset)",
+        "chipType": "MEM_UVPROM",
+        "sizeKB": 8,
+        "startHex": "0x0000",
+        "endHex": "0x1FFF",
+        "space": "memory",
+        "access": "R",
+        "isMirror": false,
+        "requireIoIsolation": true
+      },
+      {
+        "id": "reg-empty-1",
+        "label": "Zona Libre 1 (VACÍO)",
+        "chipType": "EMPTY",
+        "sizeKB": 24,
+        "startHex": "0x2000",
+        "endHex": "0x7FFF",
+        "space": "memory",
+        "access": "NONE",
+        "isMirror": false
+      },
+      {
+        "id": "reg-ram",
+        "label": "SRAM 8 kB (Bloque Principal)",
+        "chipType": "MEM_SRAM",
+        "sizeKB": 8,
+        "startHex": "0x8000",
+        "endHex": "0x9FFF",
+        "space": "memory",
+        "access": "RW",
+        "isMirror": false,
+        "requireIoIsolation": true
+      },
+      {
+        "id": "reg-ram-mirror",
+        "label": "SRAM 8 kB (Espejo / Imagen)",
+        "chipType": "MEM_SRAM",
+        "sizeKB": 8,
+        "startHex": "0xA000",
+        "endHex": "0xBFFF",
+        "space": "memory",
+        "access": "RW",
+        "isMirror": true,
+        "requireIoIsolation": true
+      },
+      {
+        "id": "reg-empty-2",
+        "label": "Zona Libre 2 (VACÍO)",
+        "chipType": "EMPTY",
+        "sizeKB": 16,
+        "startHex": "0xC000",
+        "endHex": "0xFFFF",
+        "space": "memory",
+        "access": "NONE",
+        "isMirror": false
+      }
+    ]
+  }
+}

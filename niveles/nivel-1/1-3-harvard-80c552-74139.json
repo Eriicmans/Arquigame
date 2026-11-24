@@ -1,0 +1,120 @@
+{
+  "id": "1-3",
+  "levelId": 1,
+  "order": 3,
+  "difficulty": "medio",
+  "assistMode": "guided",
+  "title": "Subnivel 1.3 · Arquitectura Harvard (80C552 + 74139)",
+  "subtitle": "Separación física de memoria de programa (/PSEN) y datos externos XRAM (/RD, /WR) en bloques de 16 kB",
+  "sourceRef": "Basado en Intro 80C552.pdf y 4-memorias.pdf (80C552 / 80C51, 74139)",
+  "mechanics": ["wiring", "memoryMap"],
+  "briefing": {
+    "statement": "Diseña un sistema con arquitectura Harvard basado en el microcontrolador 80C552 / 80C51. Debes conectar una UVPROM de 16 kB como memoria de programa externa (leída mediante /PSEN) y una SRAM de 16 kB como memoria de datos externa XRAM (accedida mediante /RD y /WR). Utiliza un decodificador 74139 (2 a 4) para dividir cada espacio de 64 kB en bloques de 16 kB y mapear ambos chips en 0000h–3FFFh sin colisiones.",
+    "objectives": [
+      "Configura el decodificador U1 (74139) con A0 ← A14, A1 ← A15 y habilitación permanente /E ← GND para obtener bloques de 16 kB.",
+      "Conecta la UVPROM de 16 kB en 0000h–3FFFh del espacio de programa (/CS ← /Y0, /OE ← /PSEN).",
+      "Conecta la SRAM de 16 kB en 0000h–3FFFh del espacio de datos XRAM (/CS ← /Y0, /OE ← /RD, /WE ← /WR).",
+      "Completa el mapa de memoria separando los espacios de programa y datos, incluyendo las zonas VACÍAS (4000h–FFFFh)."
+    ],
+    "mermaid": "flowchart LR\n  CPU[\"MCU 80C552 (A15..A14, /PSEN, /RD, /WR)\"] -->|\"A14, A15\"| DEC[\"U1: 74139 (2 a 4, /E=GND)\"]\n  DEC -->|\"/Y0 (0000h-3FFFh)\"| ROM[\"U2: UVPROM 16 kB (/CS)\"]\n  DEC -->|\"/Y0 (0000h-3FFFh)\"| RAM[\"U3: SRAM 16 kB (/CS)\"]\n  CPU -->|\"/PSEN (Programa)\"| ROM\n  CPU -->|\"/RD, /WR (Datos XRAM)\"| RAM",
+    "hints": [
+      "Cada memoria de 16 kB usa 14 líneas internas de dirección (bus A0..An ya conectado en modo guiado). Por tanto, el 74139 decodifica A14 (en A0) y A15 (en A1), con /E conectado a GND.",
+      "Tanto la UVPROM como la SRAM reciben /Y0 (A15 A14 = 00, rango 0000h–3FFFh) en su pin /CS. No hay colisión porque pertenecen a espacios físicos distintos: /PSEN habilita /OE de la UVPROM en ciclos de programa, mientras que /RD y /WR controlan /OE y /WE de la SRAM en ciclos XRAM.",
+      "En la tabla del mapa de memoria debes registrar 4 regiones: UVPROM (0x0000–0x3FFF, 16 kB, programa, R), VACÍO programa (0x4000–0xFFFF, 48 kB, programa, NONE), SRAM (0x0000–0x3FFF, 16 kB, datos, RW) y VACÍO datos (0x4000–0xFFFF, 48 kB, datos, NONE)."
+    ]
+  },
+  "circuit": {
+    "cpuProfile": "80C552",
+    "components": [
+      { "id": "cpu", "type": "CPU_80C552", "label": "MCU: 80C552 / 80C51", "x": 28, "y": 40, "locked": true },
+      { "id": "dec1", "type": "IC_74139", "label": "U1: 74139", "x": 285, "y": 40, "locked": false },
+      { "id": "gnd1", "type": "POWER_GND", "label": "GND", "x": 330, "y": 290, "locked": false },
+      { "id": "rom1", "type": "MEM_UVPROM", "label": "U2: UVPROM 16 kB (Prog)", "x": 545, "y": 40, "locked": false, "props": { "sizeKB": 16, "dataWidth": 8 } },
+      { "id": "ram1", "type": "MEM_SRAM", "label": "U3: SRAM 16 kB (XRAM)", "x": 545, "y": 240, "locked": false, "props": { "sizeKB": 16, "dataWidth": 8 } }
+    ],
+    "palette": [
+      { "type": "IC_74139", "label": "74139 (2→4)" },
+      { "type": "IC_74138", "label": "74AHCT138 (3→8)" },
+      { "type": "GATE_AND", "label": "Puerta AND (2 ent.)" },
+      { "type": "GATE_OR", "label": "Puerta OR (2 ent.)" },
+      { "type": "GATE_NOT", "label": "Inversor NOT" },
+      { "type": "GATE_NAND", "label": "Puerta NAND" },
+      { "type": "GATE_NOR", "label": "Puerta NOR" },
+      { "type": "MEM_UVPROM", "label": "UVPROM 16 kB (16k×8)", "props": { "sizeKB": 16, "dataWidth": 8 } },
+      { "type": "MEM_SRAM", "label": "SRAM 16 kB (16k×8)", "props": { "sizeKB": 16, "dataWidth": 8 } },
+      { "type": "MEM_FLASH", "label": "Flash 16 kB", "props": { "sizeKB": 16, "dataWidth": 8 } },
+      { "type": "POWER_VCC", "label": "VCC (+5V / 1)" },
+      { "type": "POWER_GND", "label": "GND (0V / 0)" }
+    ],
+    "fixedWires": [
+      { "from": "cpu.A0..A12", "to": "rom1.ADDR", "locked": true },
+      { "from": "cpu.D0..D7", "to": "rom1.DATA", "locked": true },
+      { "from": "cpu.A0..A12", "to": "ram1.ADDR", "locked": true },
+      { "from": "cpu.D0..D7", "to": "ram1.DATA", "locked": true }
+    ],
+    "referenceNetlist": [
+      { "from": "cpu.A0..A12", "to": "rom1.ADDR" },
+      { "from": "cpu.D0..D7", "to": "rom1.DATA" },
+      { "from": "cpu.A0..A12", "to": "ram1.ADDR" },
+      { "from": "cpu.D0..D7", "to": "ram1.DATA" },
+      { "from": "cpu.A14", "to": "dec1.A0" },
+      { "from": "cpu.A15", "to": "dec1.A1" },
+      { "from": "gnd1.GND", "to": "dec1./E" },
+      { "from": "dec1./Y0", "to": "rom1./CS" },
+      { "from": "cpu./PSEN", "to": "rom1./OE" },
+      { "from": "dec1./Y0", "to": "ram1./CS" },
+      { "from": "cpu./RD", "to": "ram1./OE" },
+      { "from": "cpu./WR", "to": "ram1./WE" }
+    ]
+  },
+  "memoryMapTask": {
+    "addressWidth": 16,
+    "requireTableCompletion": true,
+    "expectedRegions": [
+      {
+        "id": "reg-prog-rom",
+        "label": "UVPROM 16 kB (Programa /PSEN)",
+        "chipType": "MEM_UVPROM",
+        "sizeKB": 16,
+        "startHex": "0x0000",
+        "endHex": "0x3FFF",
+        "space": "program",
+        "access": "R",
+        "isMirror": false
+      },
+      {
+        "id": "reg-prog-empty",
+        "label": "Zona Libre Programa (VACÍO)",
+        "chipType": "EMPTY",
+        "sizeKB": 48,
+        "startHex": "0x4000",
+        "endHex": "0xFFFF",
+        "space": "program",
+        "access": "NONE",
+        "isMirror": false
+      },
+      {
+        "id": "reg-data-ram",
+        "label": "SRAM 16 kB (Datos XRAM)",
+        "chipType": "MEM_SRAM",
+        "sizeKB": 16,
+        "startHex": "0x0000",
+        "endHex": "0x3FFF",
+        "space": "data",
+        "access": "RW",
+        "isMirror": false
+      },
+      {
+        "id": "reg-data-empty",
+        "label": "Zona Libre Datos (VACÍO)",
+        "chipType": "EMPTY",
+        "sizeKB": 48,
+        "startHex": "0x4000",
+        "endHex": "0xFFFF",
+        "space": "data",
+        "access": "NONE",
+        "isMirror": false
+      }
+    ]
+  }
+}
