@@ -273,6 +273,9 @@ export const ChipNode: React.FC<ChipNodeProps> = ({
         {/* Connection Terminal Socket */}
         <g
           className="cursor-pointer"
+          onPointerDown={(e) => {
+            if (e.button === 0) e.stopPropagation();
+          }}
           onClick={(e) => {
             e.stopPropagation();
             onPinClick(e, component.id, pin);
@@ -332,6 +335,9 @@ export const ChipNode: React.FC<ChipNodeProps> = ({
         <g
           key={pin.id}
           className="cursor-pointer"
+          onPointerDown={(e) => {
+            if (e.button === 0) e.stopPropagation();
+          }}
           onClick={(e) => {
             e.stopPropagation();
             onPinClick(e, component.id, pin);
@@ -610,6 +616,9 @@ export const ChipNode: React.FC<ChipNodeProps> = ({
       <g
         key={pin.id}
         className="cursor-pointer group"
+        onPointerDown={(e) => {
+          if (e.button === 0) e.stopPropagation();
+        }}
         onClick={(e) => {
           e.stopPropagation();
           onPinClick(e, component.id, pin);

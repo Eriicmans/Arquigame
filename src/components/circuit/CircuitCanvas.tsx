@@ -142,6 +142,7 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
   } | null>(null);
 
   const panRef = useRef<{
+    pointerId: number;
     startX: number;
     startY: number;
     originX: number;
@@ -201,17 +202,16 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
   };
 
   const handleCanvasPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    // Left-click on empty canvas background or middle-click anywhere starts map panning
+    // Left-click on empty canvas background or middle-click anywhere prepares map panning
     if (e.button === 1 || (e.button === 0 && !dragRef.current)) {
       panRef.current = {
+        pointerId: e.pointerId,
         startX: e.clientX,
         startY: e.clientY,
         originX: pan.x,
         originY: pan.y,
         moved: false,
       };
-      setIsPanning(true);
-      svgRef.current?.setPointerCapture?.(e.pointerId);
     }
   };
 
@@ -234,13 +234,17 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
     if (panRef.current) {
       const dx = e.clientX - panRef.current.startX;
       const dy = e.clientY - panRef.current.startY;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      if (!panRef.current.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
         panRef.current.moved = true;
+        setIsPanning(true);
+        svgRef.current?.setPointerCapture?.(panRef.current.pointerId);
       }
-      setPan({
-        x: panRef.current.originX + dx,
-        y: panRef.current.originY + dy,
-      });
+      if (panRef.current.moved) {
+        setPan({
+          x: panRef.current.originX + dx,
+          y: panRef.current.originY + dy,
+        });
+      }
       return;
     }
 
@@ -431,6 +435,9 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
                 <g
                   key={w.id}
                   className={w.locked ? 'cursor-default' : 'cursor-pointer'}
+                  onPointerDown={(e) => {
+                    if (e.button === 0) e.stopPropagation();
+                  }}
                   onMouseEnter={() =>
                     setHoveredWire({ id: w.id, label: wireLabel, locked: w.locked })
                   }
