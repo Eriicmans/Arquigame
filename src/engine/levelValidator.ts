@@ -42,6 +42,9 @@ export function validateSublevel(
   playerTable: PlayerTableRow[],
   mode: 'guided' | 'exam' = sublevel.assistMode
 ): ValidationResult {
+  if (!sublevel.circuit || !sublevel.memoryMapTask) {
+    throw new Error(`El subnivel ${sublevel.id} no utiliza circuito ni mapa de memoria.`);
+  }
   const analysis = analyzeMemoryMap(components, wires, sublevel.circuit.cpuProfile);
   const diagnostics: DiagnosticItem[] = [...analysis.diagnostics];
   const regionResults: RegionCheckResult[] = [];

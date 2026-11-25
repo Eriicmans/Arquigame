@@ -1,0 +1,277 @@
+{
+  "id": "3-3",
+  "levelId": 3,
+  "order": 3,
+  "difficulty": "examen",
+  "assistMode": "exam",
+  "title": "Subnivel 3.3 · Examen: FSM Completa, Detección de Flancos y PSW",
+  "subtitle": "Evaluación integral de eventos diferenciales, flags del PSW y despachador FSM en 80C552",
+  "sourceRef": "Basado en 2_desarrollo_software (1).pdf y DesarrolloSW_EJ2_Presentacion.pdf (Modo Examen)",
+  "mechanics": ["registers", "flowchart"],
+  "briefing": {
+    "statement": "Diseña la lógica completa de control para un autómata FSM en 80C552 con detección de flancos de subida (evento diferencial entre OLD_IN y NEW_IN) y tabla de salto de 2 bytes (AJMP) utilizando el banco de registros 0. Configura el registro PSW antes de ejecutar RL A para indexar la tabla, identifica los bits de evento diferencial y ordena el flujo completo de la subrutina de servicio FSM.",
+    "objectives": [
+      "Configura PSW (0xD0) para operar con el Banco 0 de registros y asegurar Carry = 0 antes de rotar A con RL A.",
+      "Determina la máscara del byte EVENTO (0x20) tras detectar un flanco de subida exclusivo en el bit 2 (OLD_IN = 0000_0001b, NEW_IN = 0000_0101b).",
+      "Responde a las cuestiones teóricas sobre Estado vs Evento diferencial vs Acción y el efecto de los flags de PSW.",
+      "Ordena el flujo completo del despachador FSM incluyendo detección de flancos (OLD_IN vs NEW_IN), actualización de historial y salto indexado sin distractores."
+    ],
+    "hints": []
+  },
+  "registerTask": {
+    "registers": [
+      {
+        "id": "psw",
+        "name": "PSW (Program Status Word)",
+        "addressHex": "0xD0",
+        "purpose": "Prepara PSW antes de 'RL A' en la tabla de salto usando el Banco de Registros 0 (RS1=0, RS0=0) y sin acarreo previo (CY=0).",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "P",
+            "description": "Paridad del acumulador (actualizada automáticamente por hardware)",
+            "expected": null,
+            "initial": 0
+          },
+          {
+            "bit": 1,
+            "name": "-",
+            "description": "Bit reservado / definido por usuario",
+            "expected": null,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "OV",
+            "description": "Overflow aritmético (no relevante antes de RL A)",
+            "expected": null,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "RS0",
+            "description": "Selector de banco de registros bit 0 (0 para Banco 0)",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 4,
+            "name": "RS1",
+            "description": "Selector de banco de registros bit 1 (0 para Banco 0)",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 5,
+            "name": "F0",
+            "description": "Flag de propósito general 0 (no usado aquí)",
+            "expected": null,
+            "initial": 0
+          },
+          {
+            "bit": 6,
+            "name": "AC",
+            "description": "Acarreo auxiliar BCD (no interviene en RL A)",
+            "expected": null,
+            "initial": 0
+          },
+          {
+            "bit": 7,
+            "name": "CY",
+            "description": "Carry: debe ser 0 antes de operar/rotar si se usa RLC A o para evitar arrastre",
+            "expected": 0,
+            "initial": 1
+          }
+        ]
+      },
+      {
+        "id": "evento",
+        "name": "EVENTO (Flancos de subida)",
+        "addressHex": "0x20",
+        "purpose": "Calcula EVENTO = (OLD_IN XOR NEW_IN) AND NEW_IN con OLD_IN = 0000_0001b (bit 0 activo) y NEW_IN = 0000_0101b (bits 0 y 2 activos).",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "EV0",
+            "description": "Bit 0: ya estaba a 1 en OLD_IN y sigue a 1 en NEW_IN (sin flanco)",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 1,
+            "name": "EV1",
+            "description": "Bit 1: permanece a 0",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "EV2",
+            "description": "Bit 2: pasó de 0 en OLD_IN a 1 en NEW_IN (flanco de subida detectado)",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "EV3",
+            "description": "Bit 3: permanece a 0",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 4,
+            "name": "EV4",
+            "description": "Bit 4: permanece a 0",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 5,
+            "name": "EV5",
+            "description": "Bit 5: permanece a 0",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 6,
+            "name": "EV6",
+            "description": "Bit 6: permanece a 0",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 7,
+            "name": "EV7",
+            "description": "Bit 7: permanece a 0",
+            "expected": 0,
+            "initial": 0
+          }
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "id": "q_diff_event",
+        "prompt": "¿Cuál es la diferencia fundamental entre un 'Evento diferencial' y un 'Estado' en una FSM?",
+        "options": [
+          "El estado representa la situación persistente del sistema; el evento diferencial ocurre únicamente en el instante de transición (flanco) entre muestras.",
+          "El evento diferencial se almacena en la ROM y el estado en el registro DPTR.",
+          "No hay diferencia: ambos indican el nivel lógico continuo de un pin de entrada."
+        ],
+        "correctIndex": 0,
+        "explanation": "Un estado persiste entre iteraciones del lazo mientras no haya transición. El evento diferencial (detectado comparando OLD_IN y NEW_IN) solo vale 1 durante un ciclo cuando cambia la entrada, evitando disparar múltiples transiciones por una pulsación mantenida."
+      },
+      {
+        "id": "q_action_vs_state",
+        "prompt": "En el diseño de autómatas para 80C552, ¿qué distingue a una 'Acción' de una transición de 'Estado'?",
+        "options": [
+          "La acción modifica salidas o variables auxiliares al entrar o permanecer en un estado; la transición actualiza la variable ESTADO.",
+          "La acción siempre ejecuta un RETI y la transición ejecuta un CLR C.",
+          "La acción solo puede ocurrir dentro de la tabla #TABLA_FSM antes del JMP @A+DPTR."
+        ],
+        "correctIndex": 0,
+        "explanation": "Las acciones actúan sobre puertos/actuadores o contadores, mientras que la transición determina cuál será el nuevo valor de ESTADO para la siguiente iteración del lazo."
+      },
+      {
+        "id": "q_psw_rl",
+        "prompt": "¿Qué diferencia hay entre usar 'RL A' y 'RLC A' al multiplicar por 2 el índice ESTADO para JMP @A+DPTR?",
+        "options": [
+          "RL A rota los 8 bits de A sin pasar por CY; RLC A introduce el bit CY de PSW en el bit 0 de A, corrompiendo el índice si CY=1.",
+          "RL A borra automáticamente el registro PSW completo y RLC A lo preserva.",
+          "Ambas instrucciones son idénticas independientemente del valor de CY en PSW."
+        ],
+        "correctIndex": 0,
+        "explanation": "RL A realiza una rotación pura de 8 bits (A0 ← A7) sin alterar ni leer el flag CY de PSW. Si se usara RLC A con CY=1, el bit 0 del resultado sería 1 (índice impar), desalineando la tabla de saltos AJMP de 2 bytes."
+      }
+    ]
+  },
+  "flowchartTask": {
+    "title": "Ordena la detección de flancos (OLD_IN vs NEW_IN) y el despachador FSM completo",
+    "blocks": [
+      {
+        "id": "e_read",
+        "label": "Leer puerto en NEW_IN",
+        "code": "MOV NEW_IN, P1",
+        "kind": "action",
+        "detail": "Captura la muestra actual de las entradas digitales."
+      },
+      {
+        "id": "e_xor_and",
+        "label": "Detectar flanco de subida",
+        "code": "MOV A, OLD_IN\nXRL A, NEW_IN\nANL A, NEW_IN\nMOV EVENTO, A",
+        "kind": "decision",
+        "detail": "Aísla los bits que cambiaron de 0 a 1 respecto a la iteración anterior."
+      },
+      {
+        "id": "e_update_old",
+        "label": "Actualizar OLD_IN",
+        "code": "MOV OLD_IN, NEW_IN",
+        "kind": "action",
+        "detail": "Guarda la muestra actual como referencia para la siguiente iteración."
+      },
+      {
+        "id": "e_load_st",
+        "label": "Cargar ESTADO y multiplicar x2",
+        "code": "MOV A, ESTADO\nRL A",
+        "kind": "action",
+        "detail": "Prepara el desplazamiento en bytes para entradas AJMP de 2 bytes."
+      },
+      {
+        "id": "e_dptr_jmp",
+        "label": "Cargar DPTR y salto indexado",
+        "code": "MOV DPTR, #TABLA_FSM\nJMP @A+DPTR",
+        "kind": "decision",
+        "detail": "Salta directamente a la rutina del estado activo."
+      },
+      {
+        "id": "e_action_next",
+        "label": "Ejecutar acción y actualizar ESTADO",
+        "code": "ACALL ACCION_ST\nMOV ESTADO, A",
+        "kind": "action",
+        "detail": "Aplica las salidas según el estado/evento y almacena el siguiente estado."
+      },
+      {
+        "id": "e_ret",
+        "label": "Retornar al lazo principal",
+        "code": "RET",
+        "kind": "return",
+        "detail": "Finaliza el ciclo FSM sin bloquear la CPU."
+      },
+      {
+        "id": "e_bug_no_old",
+        "label": "Evaluar nivel sin OLD_IN",
+        "code": "MOV EVENTO, P1",
+        "kind": "bug",
+        "detail": "Dispara múltiples transiciones mientras el pulsador siga presionado."
+      },
+      {
+        "id": "e_bug_forget_old",
+        "label": "Omitir guardado de OLD_IN",
+        "code": "; Sin MOV OLD_IN, NEW_IN",
+        "kind": "bug",
+        "detail": "El flanco quedaría activo indefinidamente en todas las iteraciones."
+      },
+      {
+        "id": "e_bug_wait",
+        "label": "Esperar flanco bloqueando CPU",
+        "code": "JB P1.2, $",
+        "kind": "bug",
+        "detail": "Espera activa incompatible con un lazo no bloqueante."
+      }
+    ],
+    "expectedOrder": [
+      "e_read",
+      "e_xor_and",
+      "e_update_old",
+      "e_load_st",
+      "e_dptr_jmp",
+      "e_action_next",
+      "e_ret"
+    ],
+    "distractorIds": [
+      "e_bug_no_old",
+      "e_bug_forget_old",
+      "e_bug_wait"
+    ]
+  }
+}

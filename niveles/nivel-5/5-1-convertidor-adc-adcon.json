@@ -1,0 +1,119 @@
+{
+  "id": "5-1",
+  "levelId": 5,
+  "order": 1,
+  "difficulty": "tutorial",
+  "assistMode": "guided",
+  "title": "Subnivel 5.1 · Convertidor ADC del 80C552 (ADCON)",
+  "subtitle": "Selección de canal analógico, disparo de conversión y lectura de ADCH",
+  "sourceRef": "Basado en Convertidor AD.pdf (Philips 80C552: ADCON C5h, ADCH C6h)",
+  "mechanics": ["registers"],
+  "briefing": {
+    "statement": "El microcontrolador 80C552 integra un convertidor analógico-digital (ADC) de 10 bits por aproximaciones sucesivas (SAR) multiplexado en 8 canales (ADC0..ADC7). Configura el registro de control ADCON (dirección C5h) para seleccionar el canal analógico ADC3, limpiar el flag de fin de conversión (ADCI = 0), deshabilitar el disparo externo (ADEX = 0) e iniciar una conversión por software (ADCS = 1). Después responde a las preguntas técnicas sobre la lectura de ADCH y la arquitectura SAR frente a Flash.",
+    "objectives": [
+      "Configura A2..A0 = 011 en ADCON (C5h) para seleccionar el canal analógico ADC3.",
+      "Fija ADCS = 1 para arrancar la conversión por software, con ADCI = 0 y ADEX = 0.",
+      "Deja los bits de resultado ADC.1 y ADC.0 sin restricción (solo lectura) y responde a las preguntas sobre ADCH y ADC SAR vs Flash."
+    ],
+    "mermaid": "flowchart LR\n  MUX[\"Multiplexor 8:1\\n(A2..A0 = 011 → ADC3)\"] --> SH[\"Sample & Hold\"]\n  SH --> SAR[\"ADC SAR 10 bits\\n(ADCS = 1 inicia)\"]\n  SAR --> ADCH[\"ADCH (C6h): 8 MSB\\nADCON.7..6: 2 LSB\"]\n  SAR --> FLAG[\"ADCI = 1 al finalizar\"]",
+    "hints": [
+      "En ADCON (C5h), los 3 bits menos significativos (b2..b0) son A2, A1 y A0. Para el canal ADC3 (3 en binario = 011), debes poner A2 = 0, A1 = 1 y A0 = 1.",
+      "El bit b3 (ADCS) inicia la conversión al escribir un 1. El bit b4 (ADCI) es el flag de interrupción/fin de conversión y debe estar a 0 antes de empezar; b5 (ADEX) a 0 deshabilita el disparo externo.",
+      "ADCH (C6h) contiene los 8 bits más significativos (bits 9..2) del resultado de 10 bits; los 2 bits menos significativos (ADC.1 y ADC.0) residen en ADCON.7 y ADCON.6."
+    ]
+  },
+  "registerTask": {
+    "registers": [
+      {
+        "id": "adcon",
+        "name": "ADCON",
+        "addressHex": "C5h",
+        "purpose": "Control y estado del convertidor A/D de 10 bits del 80C552",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "A0",
+            "description": "Bit 0 de selección de canal analógico (A2..A0 = 011 para ADC3)",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 1,
+            "name": "A1",
+            "description": "Bit 1 de selección de canal analógico (A2..A0 = 011 para ADC3)",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "A2",
+            "description": "Bit 2 de selección de canal analógico (A2..A0 = 011 para ADC3)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "ADCS",
+            "description": "Inicio y estado de conversión ADC (1 = iniciar conversión por software)",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 4,
+            "name": "ADCI",
+            "description": "Flag de interrupción/fin de conversión ADC (debe limpiarse a 0 por software)",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 5,
+            "name": "ADEX",
+            "description": "Habilitación de disparo externo STADC (0 = solo inicio por software)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 6,
+            "name": "ADC.0",
+            "description": "Bit 0 (LSB) del resultado de 10 bits (solo lectura, no importa al configurar)",
+            "expected": null,
+            "initial": 0
+          },
+          {
+            "bit": 7,
+            "name": "ADC.1",
+            "description": "Bit 1 del resultado de 10 bits (solo lectura, no importa al configurar)",
+            "expected": null,
+            "initial": 0
+          }
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "id": "q-adch-msb",
+        "prompt": "Si la aplicación solo necesita 8 bits de resolución tras finalizar la conversión en el 80C552, ¿qué registro debe leer y qué bits contiene?",
+        "options": [
+          "ADCH (C6h), que contiene los 8 bits más significativos (bits 9..2) del resultado de 10 bits.",
+          "ADCON (C5h), que contiene los 8 bits más significativos en sus bits 7..0.",
+          "ADCH (C6h), que contiene únicamente los 8 bits menos significativos (bits 7..0).",
+          "ADCL (C4h), que almacena la parte baja con signo en complemento a 2."
+        ],
+        "correctIndex": 0,
+        "explanation": "El resultado de 10 bits del 80C552 se reparte entre ADCH (C6h) con los 8 MSB (bits 9..2) y ADCON.7..6 (ADC.1 y ADC.0) con los 2 LSB. Para trabajar con 8 bits basta leer ADCH."
+      },
+      {
+        "id": "q-sar-vs-flash",
+        "prompt": "¿Cuál es la principal diferencia arquitectónica y de compromiso entre el ADC SAR del 80C552 y un ADC Flash de N bits?",
+        "options": [
+          "El SAR usa 1 comparador y un DAC en N pasos secuenciales (bajo consumo y área); el Flash usa 2^N - 1 comparadores en paralelo (conversión en 1 paso, alto consumo y área).",
+          "El SAR realiza la conversión en un único ciclo de reloj usando 2^N comparadores, mientras que el Flash tarda N ciclos.",
+          "El SAR solo sirve para señales digitales y el Flash requiere un Timer externo para cada bit.",
+          "Ambos tienen exactamente el mismo número de comparadores, pero el Flash no necesita tensión de referencia."
+        ],
+        "correctIndex": 0,
+        "explanation": "Un convertidor por aproximaciones sucesivas (SAR) reutiliza un único comparador durante N ciclos (10 pasos en 10 bits), ahorrando silicio y energía. Un Flash compara en paralelo con 2^N - 1 comparadores (1023 para 10 bits), siendo ultrarrápido pero muy costoso en área y potencia."
+      }
+    ]
+  }
+}

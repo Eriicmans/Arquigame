@@ -1,0 +1,107 @@
+{
+  "id": "3-1",
+  "levelId": 3,
+  "order": 1,
+  "difficulty": "tutorial",
+  "assistMode": "guided",
+  "title": "Subnivel 3.1 · Lazo Principal No Bloqueante (80C552)",
+  "subtitle": "Arquitectura super-loop: lectura de entradas, evaluación de eventos y ejecución de FSM sin esperas activas",
+  "sourceRef": "Basado en 2_desarrollo_software (1).pdf (Lazo principal no bloqueante en 80C552)",
+  "mechanics": ["flowchart"],
+  "briefing": {
+    "statement": "En un sistema empotrado basado en 80C552, el programa principal debe ejecutarse de forma continua y determinista sin quedarse bloqueado esperando a un único sensor. Ordena los bloques del diagrama de flujo para construir un lazo principal no bloqueante (super-loop) correcto y descarta los bloques defectuosos que introducen esperas activas bloqueantes o saltos erróneos.",
+    "objectives": [
+      "Coloca la inicialización de hardware y puertos antes de entrar en el bucle infinito.",
+      "Estructura cada iteración del lazo en el orden correcto: leer entradas, evaluar eventos, ejecutar la máquina de estados (FSM) y actualizar salidas.",
+      "Cierra el lazo regresando al inicio del ciclo sin bloquear la CPU.",
+      "Rechaza los bloques trampa con espera activa (JNB P1.0, $) o reinicio de puertos dentro del bucle."
+    ],
+    "mermaid": "flowchart TD\n  A[\"INICIO\"] --> B[\"Init HW / Puertos\"]\n  B --> C[\"Leer entradas\"]\n  C --> D[\"Evaluar eventos\"]\n  D --> E[\"Ejecutar FSM\"]\n  E --> F[\"Actualizar salidas\"]\n  F --> C",
+    "hints": [
+      "La inicialización de puertos, registros y variables de estado (Init HW/Puertos) se realiza una sola vez al arrancar, nunca dentro del lazo repetitivo.",
+      "Un lazo no bloqueante sigue siempre el patrón Entrada → Evento → Estado (FSM) → Salida y vuelve al punto de lectura de entradas.",
+      "Instrucciones como 'JNB P1.0, $' detienen toda la CPU hasta que cambia un pin; cualquier bloque con espera activa bloqueante es un distractor y debe quedar fuera."
+    ]
+  },
+  "flowchartTask": {
+    "title": "Ordena el flujo del lazo principal no bloqueante en 80C552",
+    "blocks": [
+      {
+        "id": "b_inicio",
+        "label": "INICIO (Vector Reset 0000h)",
+        "code": "ORG 0000h\nLJMP MAIN",
+        "kind": "start",
+        "detail": "Punto de entrada tras el reset del 80C552."
+      },
+      {
+        "id": "b_init",
+        "label": "Init HW / Puertos",
+        "code": "ACALL INIT_PUERTOS\nMOV ESTADO, #00h",
+        "kind": "action",
+        "detail": "Configura puertos, salidas en estado seguro y estado inicial de la FSM."
+      },
+      {
+        "id": "b_leer",
+        "label": "Leer entradas",
+        "code": "MOV A, P1\nMOV NEW_IN, A",
+        "kind": "action",
+        "detail": "Muestrea los sensores digitales en una sola lectura coherente."
+      },
+      {
+        "id": "b_eventos",
+        "label": "Evaluar eventos",
+        "code": "ACALL DETECT_FLANCOS",
+        "kind": "decision",
+        "detail": "Calcula transiciones/flancos comparando entradas actuales y anteriores."
+      },
+      {
+        "id": "b_fsm",
+        "label": "Ejecutar FSM",
+        "code": "ACALL FSM_DISPATCH",
+        "kind": "action",
+        "detail": "Ejecuta únicamente la lógica del estado activo y actualiza el próximo estado."
+      },
+      {
+        "id": "b_salidas",
+        "label": "Actualizar salidas",
+        "code": "MOV P3, OUT_IMG",
+        "kind": "action",
+        "detail": "Vuelca la imagen de salidas calculada hacia los actuadores físicos."
+      },
+      {
+        "id": "b_volver",
+        "label": "Volver al lazo",
+        "code": "SJMP LOOP_MAIN",
+        "kind": "return",
+        "detail": "Salta al inicio de la iteración (Leer entradas) sin bloquear la CPU."
+      },
+      {
+        "id": "b_bug_wait",
+        "label": "Bucle de espera activa bloqueante",
+        "code": "WAIT_PIN: JNB P1.0, $",
+        "kind": "bug",
+        "detail": "Bloquea indefinidamente el microcontrolador impidiendo atender otros sensores o tareas."
+      },
+      {
+        "id": "b_bug_reinit",
+        "label": "Reiniciar hardware en cada vuelta",
+        "code": "LOOP_MAIN: MOV ESTADO, #00h",
+        "kind": "bug",
+        "detail": "Destruye el estado actual de la FSM en cada iteración del lazo."
+      }
+    ],
+    "expectedOrder": [
+      "b_inicio",
+      "b_init",
+      "b_leer",
+      "b_eventos",
+      "b_fsm",
+      "b_salidas",
+      "b_volver"
+    ],
+    "distractorIds": [
+      "b_bug_wait",
+      "b_bug_reinit"
+    ]
+  }
+}

@@ -68,6 +68,53 @@ export const PaletteEntrySchema = z.object({
   maxCount: z.number().int().positive().optional(),
 });
 
+export const RegisterBitSchema = z.object({
+  bit: z.number().int().min(0).max(7),
+  name: z.string().min(1),
+  description: z.string().min(1),
+  /** Expected value: 0, 1, or null if don't-care / reserved */
+  expected: z.union([z.literal(0), z.literal(1), z.null()]),
+  initial: z.union([z.literal(0), z.literal(1)]).default(0),
+});
+
+export const RegisterSpecSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  addressHex: z.string().optional(),
+  purpose: z.string().min(1),
+  bits: z.array(RegisterBitSchema).length(8),
+});
+
+export const RegisterQuestionSchema = z.object({
+  id: z.string().min(1),
+  prompt: z.string().min(1),
+  options: z.array(z.string().min(1)).min(2),
+  correctIndex: z.number().int().min(0),
+  explanation: z.string().min(1),
+});
+
+export const RegisterTaskSchema = z.object({
+  registers: z.array(RegisterSpecSchema).min(1),
+  questions: z.array(RegisterQuestionSchema).default([]),
+});
+
+export const FlowchartBlockSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  code: z.string().optional(),
+  kind: z.enum(['start', 'action', 'decision', 'stack', 'return', 'bug']),
+  detail: z.string().optional(),
+});
+
+export const FlowchartTaskSchema = z.object({
+  title: z.string().min(1),
+  blocks: z.array(FlowchartBlockSchema).min(2),
+  /** Ordered list of block IDs that form the valid solution */
+  expectedOrder: z.array(z.string().min(1)).min(2),
+  /** Distractor / buggy block IDs that must NOT be in the final flow */
+  distractorIds: z.array(z.string().min(1)).default([]),
+});
+
 export const SublevelSchema = z.object({
   id: z.string().min(1),
   levelId: z.number().int().positive(),
@@ -84,23 +131,33 @@ export const SublevelSchema = z.object({
     mermaid: z.string().optional(),
     hints: z.array(z.string()).default([]),
   }),
-  circuit: z.object({
-    cpuProfile: z.enum(['8085', '80C552']),
-    components: z.array(PlacedComponentSchema),
-    palette: z.array(PaletteEntrySchema).default([]),
-    fixedWires: z.array(NetlistWireSchema).default([]),
-    referenceNetlist: z.array(NetlistWireSchema).default([]),
-  }),
-  memoryMapTask: z.object({
-    addressWidth: z.number().int().default(16),
-    requireTableCompletion: z.boolean().default(true),
-    expectedRegions: z.array(ExpectedMemoryRegionSchema).min(1),
-  }),
+  circuit: z
+    .object({
+      cpuProfile: z.enum(['8085', '80C552']),
+      components: z.array(PlacedComponentSchema),
+      palette: z.array(PaletteEntrySchema).default([]),
+      fixedWires: z.array(NetlistWireSchema).default([]),
+      referenceNetlist: z.array(NetlistWireSchema).default([]),
+    })
+    .optional(),
+  memoryMapTask: z
+    .object({
+      addressWidth: z.number().int().default(16),
+      requireTableCompletion: z.boolean().default(true),
+      expectedRegions: z.array(ExpectedMemoryRegionSchema).min(1),
+    })
+    .optional(),
+  registerTask: RegisterTaskSchema.optional(),
+  flowchartTask: FlowchartTaskSchema.optional(),
 });
 
 export type SublevelDefinition = z.infer<typeof SublevelSchema>;
 export type ExpectedMemoryRegion = z.infer<typeof ExpectedMemoryRegionSchema>;
 export type PaletteEntry = z.infer<typeof PaletteEntrySchema>;
+export type RegisterSpec = z.infer<typeof RegisterSpecSchema>;
+export type RegisterTask = z.infer<typeof RegisterTaskSchema>;
+export type FlowchartBlock = z.infer<typeof FlowchartBlockSchema>;
+export type FlowchartTask = z.infer<typeof FlowchartTaskSchema>;
 
 export const LevelManifestEntrySchema = z.object({
   id: z.number().int().positive(),

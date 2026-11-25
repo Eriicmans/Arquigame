@@ -1,0 +1,195 @@
+{
+  "id": "2-2",
+  "levelId": 2,
+  "order": 2,
+  "difficulty": "medio",
+  "assistMode": "guided",
+  "title": "Subnivel 2.2 · Puertos E/S del 80C552 (Latches, P0 y ALE)",
+  "subtitle": "Configuración de puertos cuasi-bidireccionales P1/P3, drenador abierto en P0 y demultiplexado con ALE",
+  "sourceRef": "Basado en Intro 80C552.pdf (estructura de puertos P0..P4 y bus multiplexado)",
+  "mechanics": ["registers"],
+  "briefing": {
+    "statement": "Los puertos P1, P2 y P3 del 80C552 son cuasi-bidireccionales con pull-up interno: para leer un pin como entrada digital sin que el transistor interno drene corriente a masa (GND), es obligatorio escribir previamente un '1' en el bit correspondiente de su latch. Configura los latches de P1 (90h) y P3 (B0h) según el hardware conectado, y responde a las cuestiones sobre P0 (drenador abierto) y la señal ALE.",
+    "objectives": [
+      "Configura P1 (0x90) con P1.0..P1.3 como entradas digitales (latch = 1) y P1.4..P1.7 como salidas activas en alto inicialmente apagadas (0).",
+      "Configura P3 (0xB0) con P3.0 (RxD), P3.1 (TxD en reposo), P3.2 (/INT0) y P3.3 (/INT1) a 1, y P3.4..P3.7 como salidas GPIO inicializadas a 0.",
+      "Comprende por qué P0 requiere resistencias pull-up externas en modo E/S y cómo ALE demultiplexa AD0..AD7."
+    ],
+    "mermaid": "flowchart LR\n  LATCH[\"Latch SFR (ej. P1.x = 1)\"] -->|\"Q=1 apaga N-MOSFET\"| PIN[\"Pin P1.x (alta Z + pull-up débil)\"]\n  EXT[\"Sensor / Pulsador externo\"] -->|\"Lee estado real\"| BUF[\"Buffer de Entrada\"]\n  P0[\"Puerto P0 (AD0..AD7)\"] -->|\"ALE (flanco bajada)\"| L74[\"Latch 74HC373 -> A0..A7\"]\n  P0 <-->|\"Ciclo /RD o /WR\"| DATA[\"Bus de Datos D0..D7\"]",
+    "hints": [
+      "Si dejas un 0 en el latch de un pin cuasi-bidireccional (P1 o P3), el MOSFET inferior conduce a GND y fuerza el pin a 0 V, impidiendo leer un 1 externo.",
+      "En P1 (0x90): bits 0..3 deben valer 1 (entradas) y bits 4..7 deben valer 0 (salidas apagadas) → 0x0F.",
+      "En P3 (0xB0): bits 0..3 valen 1 y bits 4..7 valen 0 → 0x0F."
+    ]
+  },
+  "registerTask": {
+    "registers": [
+      {
+        "id": "p1",
+        "name": "P1",
+        "addressHex": "0x90",
+        "purpose": "Puerto 1 (cuasi-bidireccional): P1.0..P1.3 entradas (1), P1.4..P1.7 salidas activas en alto apagadas (0)",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "P1.0",
+            "description": "Entrada digital 0 (sensor): requiere 1 en el latch para leer sin drenar corriente.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 1,
+            "name": "P1.1",
+            "description": "Entrada digital 1 (sensor): requiere 1 en el latch para leer sin drenar corriente.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "P1.2",
+            "description": "Entrada digital 2 (sensor): requiere 1 en el latch para leer sin drenar corriente.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "P1.3",
+            "description": "Entrada digital 3 (sensor): requiere 1 en el latch para leer sin drenar corriente.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 4,
+            "name": "P1.4",
+            "description": "Salida activa en alto 0 (relé apagado = 0).",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 5,
+            "name": "P1.5",
+            "description": "Salida activa en alto 1 (relé apagado = 0).",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 6,
+            "name": "P1.6",
+            "description": "Salida activa en alto 2 (relé apagado = 0).",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 7,
+            "name": "P1.7",
+            "description": "Salida activa en alto 3 (relé apagado = 0).",
+            "expected": 0,
+            "initial": 1
+          }
+        ]
+      },
+      {
+        "id": "p3",
+        "name": "P3",
+        "addressHex": "0xB0",
+        "purpose": "Puerto 3: P3.0..P3.3 a 1 (RxD, TxD reposo, /INT0, /INT1), P3.4..P3.7 como salidas GPIO a 0",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "P3.0/RxD",
+            "description": "Entrada serie RxD: debe tener 1 en el latch para funcionar como entrada.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 1,
+            "name": "P3.1/TxD",
+            "description": "Línea TxD en reposo alto (1).",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "P3.2/INT0",
+            "description": "Entrada de interrupción externa /INT0: requiere 1 en el latch.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "P3.3/INT1",
+            "description": "Entrada de interrupción externa /INT1: requiere 1 en el latch.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 4,
+            "name": "P3.4/T0",
+            "description": "Usado aquí como salida GPIO inicializada a 0.",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 5,
+            "name": "P3.5/T1",
+            "description": "Usado aquí como salida GPIO inicializada a 0.",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 6,
+            "name": "P3.6/WR",
+            "description": "Usado aquí como salida GPIO (sin RAM externa) inicializada a 0.",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 7,
+            "name": "P3.7/RD",
+            "description": "Usado aquí como salida GPIO (sin RAM externa) inicializada a 0.",
+            "expected": 0,
+            "initial": 1
+          }
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "id": "q-latch-input",
+        "prompt": "¿Por qué es necesario escribir un '1' en el latch de un pin de P1 o P3 antes de leerlo como entrada digital?",
+        "options": [
+          "Porque un '0' en el latch activa el transistor N-MOSFET interno conectado a GND, drenando corriente y forzando el pin a nivel bajo aunque el circuito externo aplique 5 V.",
+          "Porque el registro del puerto está deshabilitado hasta que se escribe 0xFF en PCON.",
+          "Porque el '1' en el latch invierte la polaridad del buffer de entrada.",
+          "Porque sin escribir '1' el pin queda desconectado del bus interno de direcciones."
+        ],
+        "correctIndex": 0,
+        "explanation": "Los puertos cuasi-bidireccionales (P1, P2, P3) tienen un MOSFET inferior a masa. Si el latch contiene 0, ese transistor conduce a GND y cortocircuita cualquier señal externa a '1'. Poner el latch a 1 apaga ese transistor y deja el pin gobernado por un pull-up débil."
+      },
+      {
+        "id": "q-p0-opendrain",
+        "prompt": "Cuando se utiliza el Puerto 0 (P0) como E/S digital de propósito general (sin bus externo), ¿qué característica eléctrica presenta frente a P1, P2 y P3?",
+        "options": [
+          "Sus salidas son en drenador abierto (open-drain) y necesitan resistencias pull-up externas para poder entregar un nivel lógico '1'.",
+          "Tiene resistencias pull-down internas de 100 Ω.",
+          "Solo puede funcionar como entrada analógica para el ADC.",
+          "Dispone de un pull-up interno más fuerte que P1."
+        ],
+        "correctIndex": 0,
+        "explanation": "En modo E/S general, el transistor superior de P0 permanece desactivado, dejando la salida en drenador abierto; por ello requiere resistencias pull-up externas para alcanzar VCC."
+      },
+      {
+        "id": "q-ale-demux",
+        "prompt": "Al acceder a memoria externa en el 80C552, ¿qué función cumple la señal ALE (Address Latch Enable) sobre el puerto P0?",
+        "options": [
+          "Captura el byte bajo de direcciones (A0..A7) presente en AD0..AD7 dentro de un latch externo (ej. 74HC373) antes de que P0 pase a transferir datos (D0..D7).",
+          "Habilita directamente el pin /CS de la memoria EPROM externa.",
+          "Activa las resistencias pull-up internas de P4.",
+          "Selecciona entre modo Idle y modo Power-Down."
+        ],
+        "correctIndex": 0,
+        "explanation": "P0 multiplexa en el tiempo AD0..AD7. Durante el pulso de ALE, P0 entrega A0..A7; en el flanco de bajada de ALE, el latch externo memoriza A0..A7 para mantener estable la dirección mientras P0 pasa a ser D0..D7."
+      }
+    ]
+  }
+}

@@ -2,9 +2,10 @@ import React from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, ClipboardCheck, Info } from 'lucide-react';
 import type { DiagnosticItem } from '@/engine/simulator';
 import type { ValidationResult } from '@/engine/levelValidator';
+import type { PuzzleValidationResult } from '@/engine/puzzleValidator';
 
 interface DiagnosticsPanelProps {
-  validation: ValidationResult | null;
+  validation: ValidationResult | PuzzleValidationResult | null;
 }
 
 export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ validation }) => {
@@ -54,32 +55,42 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ validation }
     }
   };
 
+  const isCircuitValidation = 'circuitPassed' in validation;
+
   return (
     <div className="space-y-4 text-xs">
       <div className="grid grid-cols-2 gap-2.5">
         <div
           className={`p-3 rounded-xl border ${
-            validation.circuitPassed
+            (isCircuitValidation ? validation.circuitPassed : validation.registersPassed)
               ? 'bg-emerald-50 dark:bg-emerald-950/35 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
               : 'bg-rose-50 dark:bg-rose-950/35 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'
           }`}
         >
-          <div className="text-[11px] font-medium opacity-80">Circuito</div>
+          <div className="text-[11px] font-medium opacity-80">
+            {isCircuitValidation ? 'Circuito' : 'Registros / Teoría'}
+          </div>
           <div className="font-bold text-sm mt-0.5">
-            {validation.circuitPassed ? 'Aprobado' : 'Con errores'}
+            {(isCircuitValidation ? validation.circuitPassed : validation.registersPassed)
+              ? 'Aprobado'
+              : 'Con errores'}
           </div>
         </div>
 
         <div
           className={`p-3 rounded-xl border ${
-            validation.tablePassed
+            (isCircuitValidation ? validation.tablePassed : validation.flowchartPassed)
               ? 'bg-emerald-50 dark:bg-emerald-950/35 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
               : 'bg-amber-50 dark:bg-amber-950/35 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300'
           }`}
         >
-          <div className="text-[11px] font-medium opacity-80">Tabla Mapa Hex</div>
+          <div className="text-[11px] font-medium opacity-80">
+            {isCircuitValidation ? 'Tabla Mapa Hex' : 'Diagrama de Flujo'}
+          </div>
           <div className="font-bold text-sm mt-0.5">
-            {validation.tablePassed ? 'Correcta' : 'Pendiente'}
+            {(isCircuitValidation ? validation.tablePassed : validation.flowchartPassed)
+              ? 'Correcto'
+              : 'Pendiente'}
           </div>
         </div>
       </div>

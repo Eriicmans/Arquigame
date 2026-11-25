@@ -1,0 +1,190 @@
+{
+  "id": "2-3",
+  "levelId": 2,
+  "order": 3,
+  "difficulty": "examen",
+  "assistMode": "exam",
+  "title": "Subnivel 2.3 · Examen: Puertos y Bus Externo del 80C552",
+  "subtitle": "Inicialización de latches P1/P3 con memoria externa de programa (/EA=0) y datos (/RD, /WR)",
+  "sourceRef": "Basado en Intro 80C552.pdf y problemas tipo examen de arquitectura 80C552",
+  "mechanics": ["registers"],
+  "briefing": {
+    "statement": "Un sistema basado en 80C552 ejecuta código desde EPROM externa (/EA = 0) y utiliza una SRAM externa para datos mediante MOVX. En los puertos restantes se conectan: en P1, cuatro pulsadores en P1.0..P1.3, dos LEDs activos en nivel bajo (inicialmente apagados) en P1.4..P1.5, y dos actuadores activos en nivel alto (inicialmente apagados) en P1.6..P1.7. En P3 se usan RxD (P3.0), TxD en reposo (P3.1), /INT0 (P3.2), /INT1 (P3.3), dos salidas GPIO a nivel bajo en P3.4..P3.5, y las señales de control de bus /WR (P3.6) y /RD (P3.7) para la SRAM externa. Inicializa los registros P1 y P3 y responde a las cuestiones de examen.",
+    "objectives": [
+      "Determina el valor binario/hexadecimal exacto de inicialización para el latch P1 (0x90).",
+      "Determina el valor binario/hexadecimal exacto de inicialización para el latch P3 (0xB0) respetando /WR y /RD.",
+      "Evalúa el comportamiento de /EA = 0, ALE, /PSEN y la función alternativa de P3.6/P3.7 en el bus externo."
+    ],
+    "hints": []
+  },
+  "registerTask": {
+    "registers": [
+      {
+        "id": "p1",
+        "name": "P1",
+        "addressHex": "0x90",
+        "purpose": "P1.0..P1.3 pulsadores (entrada), P1.4..P1.5 LEDs activos en bajo (apagados), P1.6..P1.7 actuadores activos en alto (apagados)",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "P1.0",
+            "description": "Pulsador 0 (entrada digital).",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 1,
+            "name": "P1.1",
+            "description": "Pulsador 1 (entrada digital).",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "P1.2",
+            "description": "Pulsador 2 (entrada digital).",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "P1.3",
+            "description": "Pulsador 3 (entrada digital).",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 4,
+            "name": "P1.4",
+            "description": "LED 0 activo en nivel bajo (apagado).",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 5,
+            "name": "P1.5",
+            "description": "LED 1 activo en nivel bajo (apagado).",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 6,
+            "name": "P1.6",
+            "description": "Actuador 0 activo en nivel alto (apagado).",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 7,
+            "name": "P1.7",
+            "description": "Actuador 1 activo en nivel alto (apagado).",
+            "expected": 0,
+            "initial": 1
+          }
+        ]
+      },
+      {
+        "id": "p3",
+        "name": "P3",
+        "addressHex": "0xB0",
+        "purpose": "P3.0..P3.3 (RxD, TxD, /INT0, /INT1), P3.4..P3.5 salidas GPIO a 0, P3.6 (/WR) y P3.7 (/RD) habilitados para SRAM externa",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "P3.0/RxD",
+            "description": "Recepción serie RxD.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 1,
+            "name": "P3.1/TxD",
+            "description": "Transmisión serie TxD en reposo.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "P3.2/INT0",
+            "description": "Interrupción externa /INT0.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "P3.3/INT1",
+            "description": "Interrupción externa /INT1.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 4,
+            "name": "P3.4/T0",
+            "description": "Salida GPIO inicializada a nivel bajo.",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 5,
+            "name": "P3.5/T1",
+            "description": "Salida GPIO inicializada a nivel bajo.",
+            "expected": 0,
+            "initial": 1
+          },
+          {
+            "bit": 6,
+            "name": "P3.6/WR",
+            "description": "Función alternativa /WR para SRAM externa.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 7,
+            "name": "P3.7/RD",
+            "description": "Función alternativa /RD para SRAM externa.",
+            "expected": 1,
+            "initial": 0
+          }
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "id": "q-ea-zero",
+        "prompt": "Con el pin /EA conectado a GND (/EA = 0), ¿cómo gestiona el 80C552 la búsqueda de instrucciones desde el vector de reset 0000h?",
+        "options": [
+          "Lee todas las instrucciones (0000h–FFFFh) de la memoria de programa externa activando /PSEN, y P0/P2 quedan dedicados al bus externo.",
+          "Lee los primeros 8 kB de la ROM interna y solo usa /PSEN a partir de 2000h.",
+          "Lee las instrucciones mediante /RD y /WR compartiendo el mapa con la SRAM.",
+          "P0 funciona en drenador abierto y necesita pull-ups externos para leer el código."
+        ],
+        "correctIndex": 0,
+        "explanation": "Con /EA = 0 se ignora la memoria de programa interna (si existiera): toda captación de instrucciones (0000h–FFFFh) se realiza en memoria externa mediante /PSEN, usando P0 (AD0..AD7) y P2 (A8..A15)."
+      },
+      {
+        "id": "q-p3-alt-func",
+        "prompt": "¿Qué sucedería con los accesos MOVX a la SRAM externa si por error el programa escribiera un '0' en el bit 6 del latch de P3 (P3.6 / /WR)?",
+        "options": [
+          "El MOSFET del latch forzaría el pin P3.6 permanentemente a 0 V, impidiendo que la función alternativa /WR opere correctamente.",
+          "El 80C552 cambiaría automáticamente la señal /WR al pin P1.6.",
+          "No tendría ningún efecto porque /WR ignora el contenido del latch de P3.",
+          "La CPU entraría en modo Power-Down de inmediato."
+        ],
+        "correctIndex": 0,
+        "explanation": "En la familia 8051/80C552, la función alternativa está cableada en AND con el latch del puerto: para que /WR (P3.6) y /RD (P3.7) puedan emitir pulsos desde nivel alto, sus latches deben permanecer a '1'."
+      },
+      {
+        "id": "q-p0-bus-vs-io",
+        "prompt": "¿Por qué durante los ciclos de bus externo (/EA = 0 o MOVX) el puerto P0 no necesita resistencias pull-up externas para generar niveles altos en AD0..AD7?",
+        "options": [
+          "Porque en modo bus externo el controlador del bus habilita el transistor superior de P0 (etapa push-pull activa), a diferencia del modo E/S general donde queda en drenador abierto.",
+          "Porque la señal ALE conecta internamente VCC a P0 durante todo el ciclo.",
+          "Porque el latch externo 74HC373 alimenta de vuelta a P0 con 5 V.",
+          "Porque P0 solo transmite ceros lógicos en modo bus."
+        ],
+        "correctIndex": 0,
+        "explanation": "En modo E/S general, P0 es open-drain y necesita pull-ups externos. En cambio, cuando P0 actúa como bus de direcciones/datos externo, el 80C552 conmuta P0 a modo push-pull activo para garantizar flancos rápidos en AD0..AD7."
+      }
+    ]
+  }
+}

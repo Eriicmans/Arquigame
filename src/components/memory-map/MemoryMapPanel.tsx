@@ -29,8 +29,9 @@ export const MemoryMapPanel: React.FC<MemoryMapPanelProps> = ({
   onRemoveRow,
 }) => {
   const showLiveMapBar = !isExamMode || validation !== null;
+  const cpuProfile = sublevel.circuit?.cpuProfile ?? '8085';
   const spaces: Array<{ key: 'memory' | 'program' | 'data'; label: string }> =
-    sublevel.circuit.cpuProfile === '80C552'
+    cpuProfile === '80C552'
       ? [
           { key: 'program', label: 'Programa (/PSEN)' },
           { key: 'data', label: 'Datos XRAM (/RD, /WR)' },
@@ -42,7 +43,7 @@ export const MemoryMapPanel: React.FC<MemoryMapPanelProps> = ({
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-            Mapa de direcciones ({sublevel.circuit.cpuProfile} · 64 kB)
+            Mapa de direcciones ({cpuProfile} · 64 kB)
           </h3>
           <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
             0000h – FFFFh
@@ -295,7 +296,7 @@ export const MemoryMapPanel: React.FC<MemoryMapPanelProps> = ({
           </div>
         ) : (
           <div className="space-y-2.5">
-          {sublevel.memoryMapTask.expectedRegions.map((region) => {
+          {(sublevel.memoryMapTask?.expectedRegions ?? []).map((region) => {
             const row = tableRows.find((r) => r.regionId === region.id) ?? {
               regionId: region.id,
               startHex: '',

@@ -8,38 +8,42 @@ export interface SavedSublevelState {
   components: PlacedComponent[];
   wires: Wire[];
   tableRows: PlayerTableRow[];
+  registerValues: Record<string, number[]>;
+  questionAnswers: Record<string, number>;
+  flowchartOrder: string[];
   completed: boolean;
 }
 
-const STORAGE_KEY = 'arquigame_progress_v3';
+const STORAGE_KEY = 'arquigame_progress_v4';
 
 export function buildInitialSublevelState(
   sublevel: SublevelDefinition,
   mode: 'guided' | 'exam' = sublevel.assistMode
 ): SavedSublevelState {
-  const components: PlacedComponent[] =
-    mode === 'exam'
+  const components: PlacedComponent[] = sublevel.circuit
+    ? mode === 'exam'
       ? sublevel.circuit.components
           .filter((c) => c.type === 'CPU_8085' || c.type === 'CPU_80C552')
           .map((c) => ({ ...c, locked: true }))
       : sublevel.circuit.components.map((c) => ({
           ...c,
           props: c.props ? { ...c.props } : undefined,
-        }));
+        }))
+    : [];
 
-  const wires: Wire[] =
-    mode === 'exam'
+  const wires: Wire[] = sublevel.circuit
+    ? mode === 'exam'
       ? []
       : sublevel.circuit.fixedWires.map((fw, idx) => ({
           id: `fixed-${idx}`,
           from: parsePinKey(fw.from),
           to: parsePinKey(fw.to),
           locked: fw.locked ?? true,
-        }));
+        }))
+    : [];
 
-  // In Exam mode, do not leak the number or names of expected regions
-  const tableRows: PlayerTableRow[] =
-    mode === 'exam'
+  const tableRows: PlayerTableRow[] = sublevel.memoryMapTask
+    ? mode === 'exam'
       ? [
           {
             regionId: 'exam-row-1',
@@ -57,18 +61,34 @@ export function buildInitialSublevelState(
           startHex: '',
           endHex: '',
           access: reg.chipType === 'EMPTY' ? 'NONE' : 'R',
-        }));
+        }))
+    : [];
+
+  const registerValues: Record<string, number[]> = {};
+  if (sublevel.registerTask) {
+    for (const reg of sublevel.registerTask.registers) {
+      const arr = new Array(8).fill(0);
+      for (const b of reg.bits) {
+        arr[b.bit] = b.initial ?? 0;
+      }
+      registerValues[reg.id] = arr;
+    }
+  }
 
   return {
     mode,
     components,
     wires,
     tableRows,
+    registerValues,
+    questionAnswers: {},
+    flowchartOrder: [],
     completed: false,
   };
 }
 
 export function buildReferenceWires(sublevel: SublevelDefinition): Wire[] {
+  if (!sublevel.circuit) return [];
   return sublevel.circuit.referenceNetlist.map((rw, idx) => ({
     id: `ref-${idx}`,
     from: parsePinKey(rw.from),

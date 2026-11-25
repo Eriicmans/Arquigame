@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Lock, Map, X } from 'lucide-react';
+import { CheckCircle2, FileText, Lock, Map, X } from 'lucide-react';
 import type { LevelManifest, SublevelDefinition } from '@/types/level';
 
 interface LevelMapModalProps {
@@ -111,6 +111,12 @@ export const LevelMapModal: React.FC<LevelMapModalProps> = ({
                             <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                               {sub.subtitle}
                             </div>
+                            {sub.sourceRef && (
+                              <div className="inline-flex items-center gap-1 text-[10px] text-sky-600 dark:text-sky-400 mt-1 font-medium">
+                                <FileText className="w-3 h-3 shrink-0" />
+                                <span>{sub.sourceRef}</span>
+                              </div>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="px-2 py-0.5 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-[10px] font-semibold capitalize text-zinc-600 dark:text-zinc-300">

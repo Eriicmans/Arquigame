@@ -3,6 +3,7 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
+  FileText,
   GitFork,
   Lightbulb,
   ShieldAlert,
@@ -66,6 +67,16 @@ export const StatementBanner: React.FC<StatementBannerProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {sublevel.sourceRef && (
+            <span
+              className="hidden xl:inline-flex items-center gap-1.5 max-w-[280px] px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 text-zinc-600 dark:text-zinc-300 text-[11px] font-medium"
+              title={`Archivo oficial de referencia: ${sublevel.sourceRef}`}
+            >
+              <FileText className="w-3 h-3 text-sky-500 shrink-0" />
+              <span className="truncate">{sublevel.sourceRef}</span>
+            </span>
+          )}
+
           {isExamMode && (
             <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-[11px] font-semibold">
               <ShieldAlert className="w-3 h-3" />
@@ -97,8 +108,9 @@ export const StatementBanner: React.FC<StatementBannerProps> = ({
         <div className="absolute left-0 right-0 top-full z-40 px-5 py-4 bg-white/98 dark:bg-zinc-900/98 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 shadow-2xl">
           <div className="max-w-6xl mx-auto space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                {sublevel.sourceRef ?? sublevel.subtitle}
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-xs text-zinc-700 dark:text-zinc-200 font-medium">
+                <FileText className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                <span>Fuente oficial: {sublevel.sourceRef ?? sublevel.subtitle}</span>
               </div>
 
               {!isExamMode && (

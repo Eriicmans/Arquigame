@@ -1,0 +1,107 @@
+{
+  "id": "3-2",
+  "levelId": 3,
+  "order": 2,
+  "difficulty": "medio",
+  "assistMode": "guided",
+  "title": "Subnivel 3.2 · Autómata FSM con Tabla de Salto Indexada",
+  "subtitle": "Despachador de estados de un depósito industrial mediante JMP @A+DPTR en ensamblador 80C552",
+  "sourceRef": "Basado en DesarrolloSW_EJ2_Presentacion.pdf (Tablas de salto FSM en 80C51/80C552)",
+  "mechanics": ["flowchart"],
+  "briefing": {
+    "statement": "Para implementar eficientemente una máquina de estados finitos (FSM) de un depósito (estados 0: REPOSO, 1: LLENADO, 2: VACIADO, 3: ALARMA) en ensamblador 80C552, se utiliza una tabla de salto con instrucciones AJMP de 2 bytes cada una. Ordena la subrutina despachadora FSM_DISPATCH y descarta las secuencias incorrectas que provocan saltos desalineados o instrucciones inválidas.",
+    "objectives": [
+      "Carga el índice del estado actual (0, 1, 2, 3) en el acumulador A.",
+      "Multiplica A por 2 mediante rotación a la izquierda (RL A) para indexar entradas AJMP de 2 bytes.",
+      "Apunta DPTR al inicio de la tabla (#TABLA_FSM) y ejecuta el salto indexado JMP @A+DPTR.",
+      "Completa el flujo con la ejecución de la acción del estado, actualización de ESTADO y retorno (RET), descartando distractores como JMP A u omitir RL A."
+    ],
+    "mermaid": "flowchart TD\n  S1[\"Cargar ESTADO en A\"] --> S2[\"Multiplicar x2 (RL A)\"]\n  S2 --> S3[\"Cargar DPTR (#TABLA_FSM)\"]\n  S3 --> S4[\"Salto indexado (JMP @A+DPTR)\"]\n  S4 --> S5[\"Ejecutar acción del estado\"]\n  S5 --> S6[\"Actualizar ESTADO\"]\n  S6 --> S7[\"RET\"]",
+    "hints": [
+      "Cada entrada de la tabla (por ejemplo, AJMP ST_REPOSO, AJMP ST_LLENADO...) ocupa 2 bytes en memoria de código. Si ESTADO = 1 y no multiplicas por 2, JMP @A+DPTR saltaría al segundo byte de la primera instrucción.",
+      "En el repertorio 80C51/80C552 no existe la instrucción 'JMP A'; el salto indexado válido es 'JMP @A+DPTR'.",
+      "Asegúrate de cargar #TABLA_FSM en DPTR antes de ejecutar JMP @A+DPTR."
+    ]
+  },
+  "flowchartTask": {
+    "title": "Construye el despachador FSM con tabla de salto indexada (AJMP = 2 bytes)",
+    "blocks": [
+      {
+        "id": "f_load_a",
+        "label": "Cargar ESTADO en A",
+        "code": "MOV A, ESTADO",
+        "kind": "action",
+        "detail": "Obtiene el código numérico del estado actual (0..3)."
+      },
+      {
+        "id": "f_rl_a",
+        "label": "Multiplicar x2 (RL A)",
+        "code": "RL A",
+        "kind": "action",
+        "detail": "Multiplica el índice por 2 porque cada AJMP en la tabla ocupa 2 bytes."
+      },
+      {
+        "id": "f_load_dptr",
+        "label": "Cargar DPTR (#TABLA)",
+        "code": "MOV DPTR, #TABLA_FSM",
+        "kind": "action",
+        "detail": "Sitúa la dirección base de la tabla de saltos en el puntero de 16 bits DPTR."
+      },
+      {
+        "id": "f_jmp_idx",
+        "label": "Salto indexado (JMP @A+DPTR)",
+        "code": "JMP @A+DPTR",
+        "kind": "decision",
+        "detail": "Desvía la ejecución a la entrada AJMP correspondiente al estado actual."
+      },
+      {
+        "id": "f_exec",
+        "label": "Ejecutar acción del estado",
+        "code": "ST_X: SETB VALVULA_IN",
+        "kind": "action",
+        "detail": "Realiza las operaciones de salida asociadas al estado seleccionado."
+      },
+      {
+        "id": "f_next_state",
+        "label": "Actualizar ESTADO",
+        "code": "MOV ESTADO, #NEXT_ST",
+        "kind": "action",
+        "detail": "Guarda el próximo estado si se ha cumplido la condición de transición."
+      },
+      {
+        "id": "f_ret",
+        "label": "Retornar de la subrutina (RET)",
+        "code": "RET",
+        "kind": "return",
+        "detail": "Devuelve el control al lazo principal no bloqueante."
+      },
+      {
+        "id": "f_bug_jmp_a",
+        "label": "Salto inválido (JMP A)",
+        "code": "JMP A",
+        "kind": "bug",
+        "detail": "Instrucción inexistente en 80C51/80C552; requiere DPTR como base."
+      },
+      {
+        "id": "f_bug_no_mul",
+        "label": "Indexar sin multiplicar x2 (INC A)",
+        "code": "INC A\nJMP @A+DPTR",
+        "kind": "bug",
+        "detail": "Desalinea el salto cayendo en mitad de los códigos de operación AJMP de 2 bytes."
+      }
+    ],
+    "expectedOrder": [
+      "f_load_a",
+      "f_rl_a",
+      "f_load_dptr",
+      "f_jmp_idx",
+      "f_exec",
+      "f_next_state",
+      "f_ret"
+    ],
+    "distractorIds": [
+      "f_bug_jmp_a",
+      "f_bug_no_mul"
+    ]
+  }
+}

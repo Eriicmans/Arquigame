@@ -6,41 +6,41 @@
       "id": 1,
       "title": "Nivel 1 · Mapas de Memoria y Decodificación",
       "description": "Buses 8085 y 80C552, decodificadores 74138/74139, puertas en lógica negativa, zonas imagen y solapamientos.",
-      "sourceDocs": ["4-memorias.pdf", "memorias_problemas.pdf", "2025-01-07", "2026-01-07"],
+      "sourceDocs": ["4-memorias.pdf", "memorias_problemas.pdf", "2025-01-07 Enun 01.07 es.pdf", "2025-01-07 Sol 1.04 es.pdf"],
       "status": "available",
       "sublevelIds": ["1-1", "1-2", "1-3", "1-4"]
     },
     {
       "id": 2,
       "title": "Nivel 2 · Procesadores, Puertos E/S y 80C552",
-      "description": "Arquitectura Von Neumann vs Harvard, puertos digitales, latches y buffers de entrada/salida.",
+      "description": "Arquitectura Von Neumann vs Harvard, puertos digitales P0..P3, latches y bus multiplexado ALE.",
       "sourceDocs": ["1a_introduccion_general.pdf", "Intro 80C552.pdf"],
-      "status": "coming_soon",
-      "sublevelIds": []
+      "status": "available",
+      "sublevelIds": ["2-1", "2-2", "2-3"]
     },
     {
       "id": 3,
       "title": "Nivel 3 · Desarrollo SW y Autómatas FSM",
-      "description": "Lazo no bloqueante, diagramas de flujo, estados, eventos, acciones y tablas de salto en 80C552.",
-      "sourceDocs": ["2_desarrollo_software (1).pdf", "DesarrolloSW_EJ2_Presentacion.pdf"],
-      "status": "coming_soon",
-      "sublevelIds": []
+      "description": "Lazo no bloqueante, diagramas de flujo, estados, eventos diferenciales y tablas de salto en 80C552.",
+      "sourceDocs": ["2_desarrollo_software (1).pdf", "DesarrolloSW_EJ2_Presentacion.pdf", "juego instrucciones.pdf"],
+      "status": "available",
+      "sublevelIds": ["3-1", "3-2", "3-3"]
     },
     {
       "id": 4,
       "title": "Nivel 4 · Sistema de Interrupciones y Concurrencia",
       "description": "Registros IEN0/IEN1, prioridades IP0/IP1, vectores de interrupción, salvado en pila y RETI.",
-      "sourceDocs": ["3_interrupciones.pdf", "2-ejercicios_interrupciones (2).pdf"],
-      "status": "coming_soon",
-      "sublevelIds": []
+      "sourceDocs": ["3_interrupciones.pdf", "AdC - Teoria 03.02 es Interrupciones 2024-10-04 - sin soluciones.pdf", "2-ejercicios_interrupciones (2).pdf"],
+      "status": "available",
+      "sublevelIds": ["4-1", "4-2", "4-3"]
     },
     {
       "id": 5,
       "title": "Nivel 5 · Periféricos Integrados (ADC, PWM, Timer 2)",
       "description": "Configuración de ADCON, PWMP/PWM0, temporizadores y práctica final Dron Submarino.",
-      "sourceDocs": ["Convertidor AD.pdf", "Timer 2.pdf", "Practica_Final_2026-2027"],
-      "status": "coming_soon",
-      "sublevelIds": []
+      "sourceDocs": ["Convertidor AD.pdf", "Timer 2.pdf", "Practica_Final_2026-2027_1.03_es_ Dron submarino.pdf"],
+      "status": "available",
+      "sublevelIds": ["5-1", "5-2", "5-3"]
     }
   ]
 }

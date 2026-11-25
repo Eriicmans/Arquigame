@@ -1,0 +1,263 @@
+{
+  "id": "5-3",
+  "levelId": 5,
+  "order": 3,
+  "difficulty": "examen",
+  "assistMode": "exam",
+  "title": "Subnivel 5.3 · Práctica Final: Dron Submarino",
+  "subtitle": "Control de profundidad en lazo cerrado con ADC por interrupción y salida PWM0",
+  "sourceRef": "Basado en Practica_Final_2026-2027 (Dron Submarino en 80C552)",
+  "mechanics": ["registers", "flowchart"],
+  "briefing": {
+    "statement": "Un dron submarino basado en 80C552 mantiene su profundidad leyendo un sensor de presión analógico conectado al canal ADC3 y ajustando el propulsor vertical mediante PWM0. Configura ADCON (C5h) para seleccionar ADC3 (A2..A0 = 011), limpiar ADCI (0), desactivar disparo externo (ADEX = 0) y disparar la conversión (ADCS = 1); habilita además la interrupción del ADC en IEN1 (EAD = 1, resto de bits de IEN1 a 0). Después, ordena el flujo completo de la rutina de servicio a la interrupción (ISR) del ADC y el bucle principal no bloqueante, descartando los bloques trampa.",
+    "objectives": [
+      "Configura ADCON (C5h) para iniciar una conversión por software en el canal ADC3 (A2..A0 = 011, ADCS = 1, ADCI = 0, ADEX = 0).",
+      "Habilita la interrupción del convertidor A/D en IEN1 poniendo EAD = 1 y el resto de bits a 0.",
+      "Ordena correctamente los bloques del lazo principal no bloqueante y de la ISR del ADC (salvado en pila, lectura de ADCH, cálculo de error, actualización de PWM0, limpieza de flag, restauración LIFO y RETI), excluyendo los bloques con errores."
+    ],
+    "hints": []
+  },
+  "registerTask": {
+    "registers": [
+      {
+        "id": "adcon",
+        "name": "ADCON",
+        "addressHex": "C5h",
+        "purpose": "Configuración del ADC para el sensor de presión en canal ADC3",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "A0",
+            "description": "Bit 0 de selección de canal analógico (ADC3 → 011)",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 1,
+            "name": "A1",
+            "description": "Bit 1 de selección de canal analógico (ADC3 → 011)",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "A2",
+            "description": "Bit 2 de selección de canal analógico (ADC3 → 011)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "ADCS",
+            "description": "Inicio de conversión ADC por software (1 = arrancar)",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 4,
+            "name": "ADCI",
+            "description": "Flag de fin de conversión ADC (0 = limpio)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 5,
+            "name": "ADEX",
+            "description": "Disparo externo (0 = deshabilitado)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 6,
+            "name": "ADC.0",
+            "description": "Bit 0 del resultado (solo lectura)",
+            "expected": null,
+            "initial": 0
+          },
+          {
+            "bit": 7,
+            "name": "ADC.1",
+            "description": "Bit 1 del resultado (solo lectura)",
+            "expected": null,
+            "initial": 0
+          }
+        ]
+      },
+      {
+        "id": "ien1",
+        "name": "IEN1",
+        "addressHex": "E8h",
+        "purpose": "Habilitación de interrupciones de periféricos integrados (habilitar EAD para el ADC)",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "EAD",
+            "description": "Habilitación de interrupción del convertidor ADC (1 = habilitada)",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 1,
+            "name": "ECT1",
+            "description": "Interrupción captura 1 de Timer 2 (0 = deshabilitada)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "ECT2",
+            "description": "Interrupción captura 2 de Timer 2 (0 = deshabilitada)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "ECT3",
+            "description": "Interrupción captura 3 de Timer 2 (0 = deshabilitada)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 4,
+            "name": "ECM0",
+            "description": "Interrupción comparación 0 de Timer 2 (0 = deshabilitada)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 5,
+            "name": "ECM1",
+            "description": "Interrupción comparación 1 de Timer 2 (0 = deshabilitada)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 6,
+            "name": "ECM2",
+            "description": "Interrupción comparación 2 de Timer 2 (0 = deshabilitada)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 7,
+            "name": "ET2",
+            "description": "Interrupción de desbordamiento de Timer 2 (0 = deshabilitada)",
+            "expected": 0,
+            "initial": 0
+          }
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "id": "q-dron-pwm-saturacion",
+        "prompt": "Si el dron submarino está por encima de la profundidad objetivo (necesita sumergirse menos / reducir empuje) y la consigna de control resulta negativa, ¿qué debe hacer la rutina antes de escribir en PWM0 (8 bits sin signo)?",
+        "options": [
+          "Saturar el valor a 0 (0 % duty) para evitar desbordamiento a valores altos (underflow a 255).",
+          "Escribir directamente el complemento a 2 en PWM0 para invertir el sentido de giro del motor.",
+          "Deshabilitar EA = 0 permanentemente hasta que el dron alcance el fondo.",
+          "Sumar 256 al registro PWMP para cambiar la frecuencia del propulsor."
+        ],
+        "correctIndex": 0,
+        "explanation": "PWM0 es un registro sin signo de 0 a 255. Si un cálculo con signo produce un valor negativo y no se satura a 0, el byte resultante (p. ej. -1 = FFh = 255) aplicaría el 100 % de potencia al propulsor."
+      }
+    ]
+  },
+  "flowchartTask": {
+    "title": "ISR del ADC y Lazo No Bloqueante (Dron Submarino)",
+    "blocks": [
+      {
+        "id": "blk-main-init",
+        "label": "Inicio: configurar ADCON, PWMP/PWM0 e IEN1 (EAD=1)",
+        "code": "MOV PWMP,#24 / MOV ADCON,#0Bh",
+        "kind": "start",
+        "detail": "Inicializa periféricos y habilita interrupciones antes de entrar al bucle principal."
+      },
+      {
+        "id": "blk-main-loop",
+        "label": "Bucle principal no bloqueante (telemetría / FSM)",
+        "code": "SJMP MAIN_LOOP",
+        "kind": "action",
+        "detail": "Ejecuta tareas de fondo sin esperar activamente (sin polling bloqueante) al ADC."
+      },
+      {
+        "id": "blk-isr-push",
+        "label": "ISR ADC: Salvar contexto en pila (PUSH ACC, PUSH PSW)",
+        "code": "PUSH ACC / PUSH PSW",
+        "kind": "stack",
+        "detail": "Preserva los registros modificados por la ISR antes de operar."
+      },
+      {
+        "id": "blk-isr-read-adc",
+        "label": "Leer muestra de profundidad (ADCH)",
+        "code": "MOV A, ADCH",
+        "kind": "action",
+        "detail": "Obtiene los 8 bits más significativos de la conversión del sensor de presión."
+      },
+      {
+        "id": "blk-isr-calc-err",
+        "label": "Calcular error de profundidad (Consigna - ADCH)",
+        "code": "CLR C / SUBB A, REF_PROF",
+        "kind": "action",
+        "detail": "Calcula la desviación respecto a la profundidad deseada con saturación."
+      },
+      {
+        "id": "blk-isr-upd-pwm",
+        "label": "Actualizar PWM0 y limpiar flag ADCI",
+        "code": "MOV PWM0, A / ANL ADCON, #0EFh",
+        "kind": "action",
+        "detail": "Ajusta el ciclo de trabajo del propulsor, borra ADCI=0 y relanza ADCS si procede."
+      },
+      {
+        "id": "blk-isr-pop",
+        "label": "Restaurar contexto LIFO (POP PSW, POP ACC)",
+        "code": "POP PSW / POP ACC",
+        "kind": "stack",
+        "detail": "Recupera el estado previo de la CPU en orden inverso al PUSH."
+      },
+      {
+        "id": "blk-isr-reti",
+        "label": "Retornar de la interrupción (RETI)",
+        "code": "RETI",
+        "kind": "return",
+        "detail": "Restaura el PC y reactiva el controlador de interrupciones."
+      },
+      {
+        "id": "blk-bug-polling",
+        "label": "Esperar en bucle bloqueante hasta ADCI = 1 dentro de main",
+        "code": "JNB ADCI, $",
+        "kind": "bug",
+        "detail": "Error: bloquea el procesador mediante polling cuando el sistema usa interrupción EAD."
+      },
+      {
+        "id": "blk-bug-ret",
+        "label": "Retornar de la ISR con RET en lugar de RETI",
+        "code": "RET",
+        "kind": "bug",
+        "detail": "Error grave: RET no restaura la lógica de prioridad de interrupciones del 80C552."
+      },
+      {
+        "id": "blk-bug-pop-order",
+        "label": "Restaurar en orden FIFO (POP ACC, POP PSW)",
+        "code": "POP ACC / POP PSW",
+        "kind": "bug",
+        "detail": "Error: al haber hecho PUSH ACC y luego PUSH PSW, POP debe ser en orden inverso (LIFO)."
+      }
+    ],
+    "expectedOrder": [
+      "blk-main-init",
+      "blk-main-loop",
+      "blk-isr-push",
+      "blk-isr-read-adc",
+      "blk-isr-calc-err",
+      "blk-isr-upd-pwm",
+      "blk-isr-pop",
+      "blk-isr-reti"
+    ],
+    "distractorIds": [
+      "blk-bug-polling",
+      "blk-bug-ret",
+      "blk-bug-pop-order"
+    ]
+  }
+}

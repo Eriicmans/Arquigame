@@ -22,6 +22,8 @@ import { MemoryMapPanel } from '@/components/memory-map/MemoryMapPanel';
 import { ComponentPalette } from '@/components/palette/ComponentPalette';
 import { DiagnosticsPanel } from '@/components/panels/DiagnosticsPanel';
 import { StatementBanner } from '@/components/panels/StatementBanner';
+import { FlowchartWorkbench } from '@/components/puzzles/FlowchartWorkbench';
+import { RegisterWorkbench } from '@/components/puzzles/RegisterWorkbench';
 import { loadAllSublevels, loadManifest } from '@/data/levelLoader';
 import { COMPONENT_REGISTRY } from '@/engine/chips/registry';
 import {
@@ -30,6 +32,10 @@ import {
   type ValidationResult,
 } from '@/engine/levelValidator';
 import { analyzeMemoryMap } from '@/engine/memoryMapAnalyzer';
+import {
+  validatePuzzleTasks,
+  type PuzzleValidationResult,
+} from '@/engine/puzzleValidator';
 import {
   buildInitialSublevelState,
   buildReferenceWires,
@@ -89,16 +95,21 @@ export function App() {
   const [rightTab, setRightTab] = useState<RightTab>('memoryMap');
   const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [validation, setValidation] = useState<ValidationResult | PuzzleValidationResult | null>(null);
   const [levelMapOpen, setLevelMapOpen] = useState(false);
 
   useEffect(() => {
     saveSublevelState(sublevel.id, state.mode, state);
   }, [sublevel.id, state]);
 
+  const hasCircuit = Boolean(sublevel.circuit && sublevel.memoryMapTask);
+
   const liveAnalysis = useMemo(
-    () => analyzeMemoryMap(state.components, state.wires, sublevel.circuit.cpuProfile),
-    [state.components, state.wires, sublevel.circuit.cpuProfile]
+    () =>
+      sublevel.circuit
+        ? analyzeMemoryMap(state.components, state.wires, sublevel.circuit.cpuProfile)
+        : null,
+    [state.components, state.wires, sublevel.circuit]
   );
 
   const isExamMode = state.mode === 'exam';
@@ -269,14 +280,70 @@ export function App() {
     }));
   };
 
+  const handleToggleBit = (regId: string, bit: number) => {
+    setState((prev) => {
+      const cur = prev.registerValues[regId] ?? new Array(8).fill(0);
+      const next = [...cur];
+      next[bit] = next[bit] === 1 ? 0 : 1;
+      return {
+        ...prev,
+        registerValues: { ...prev.registerValues, [regId]: next },
+      };
+    });
+    setValidation(null);
+  };
+
+  const handleSelectAnswer = (questionId: string, optionIdx: number) => {
+    setState((prev) => ({
+      ...prev,
+      questionAnswers: { ...prev.questionAnswers, [questionId]: optionIdx },
+    }));
+    setValidation(null);
+  };
+
+  const handleAddFlowBlock = (blockId: string) => {
+    setState((prev) => ({
+      ...prev,
+      flowchartOrder: [...prev.flowchartOrder, blockId],
+    }));
+    setValidation(null);
+  };
+
+  const handleRemoveFlowAt = (idx: number) => {
+    setState((prev) => ({
+      ...prev,
+      flowchartOrder: prev.flowchartOrder.filter((_, i) => i !== idx),
+    }));
+    setValidation(null);
+  };
+
+  const handleMoveFlow = (idx: number, dir: -1 | 1) => {
+    setState((prev) => {
+      const next = [...prev.flowchartOrder];
+      const target = idx + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return { ...prev, flowchartOrder: next };
+    });
+    setValidation(null);
+  };
+
   const handleVerify = () => {
-    const res = validateSublevel(
-      sublevel,
-      state.components,
-      state.wires,
-      state.tableRows,
-      state.mode
-    );
+    const res = hasCircuit
+      ? validateSublevel(
+          sublevel,
+          state.components,
+          state.wires,
+          state.tableRows,
+          state.mode
+        )
+      : validatePuzzleTasks(
+          sublevel.registerTask,
+          sublevel.flowchartTask,
+          state.registerValues,
+          state.questionAnswers,
+          state.flowchartOrder
+        );
     setValidation(res);
     setRightTab('diagnostics');
     setRightDrawerOpen(true);
@@ -289,28 +356,59 @@ export function App() {
   const handleLoadReferenceSolution = () => {
     if (isExamMode) return;
     const base = buildInitialSublevelState(sublevel, 'guided');
-    const refWires = buildReferenceWires(sublevel);
-    const filledTable: PlayerTableRow[] = sublevel.memoryMapTask.expectedRegions.map(
-      (reg) => ({
-        regionId: reg.id,
-        startHex: `${reg.startHex.slice(2)}h`,
-        endHex: `${reg.endHex.slice(2)}h`,
-        access: reg.access,
-      })
-    );
-    setState({
-      ...base,
-      wires: refWires,
-      tableRows: filledTable,
-    });
+    if (hasCircuit && sublevel.memoryMapTask) {
+      const refWires = buildReferenceWires(sublevel);
+      const filledTable: PlayerTableRow[] = sublevel.memoryMapTask.expectedRegions.map(
+        (reg) => ({
+          regionId: reg.id,
+          startHex: `${reg.startHex.slice(2)}h`,
+          endHex: `${reg.endHex.slice(2)}h`,
+          access: reg.access,
+        })
+      );
+      setState({
+        ...base,
+        wires: refWires,
+        tableRows: filledTable,
+      });
+    } else {
+      const registerValues: Record<string, number[]> = { ...base.registerValues };
+      const questionAnswers: Record<string, number> = {};
+      if (sublevel.registerTask) {
+        for (const reg of sublevel.registerTask.registers) {
+          const arr = new Array(8).fill(0);
+          for (const b of reg.bits) {
+            arr[b.bit] = b.expected ?? b.initial ?? 0;
+          }
+          registerValues[reg.id] = arr;
+        }
+        for (const q of sublevel.registerTask.questions) {
+          questionAnswers[q.id] = q.correctIndex;
+        }
+      }
+      setState({
+        ...base,
+        registerValues,
+        questionAnswers,
+        flowchartOrder: sublevel.flowchartTask?.expectedOrder ?? [],
+      });
+    }
     setValidation(null);
   };
 
   const completedIds = useMemo(() => {
     const set = new Set<string>();
+    for (const s of sublevels) {
+      if (
+        loadSavedState(s.id, 'guided')?.completed ||
+        loadSavedState(s.id, 'exam')?.completed
+      ) {
+        set.add(s.id);
+      }
+    }
     if (state.completed) set.add(sublevel.id);
     return set;
-  }, [state.completed, sublevel.id]);
+  }, [state.completed, sublevel.id, sublevels]);
 
   return (
     <div
@@ -445,26 +543,28 @@ export function App() {
           </div>
 
           {/* Toggle Mapa Hex / Resultado Drawer */}
-          <button
-            type="button"
-            onClick={() => setRightDrawerOpen((o) => !o)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${
-              rightDrawerOpen
-                ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-transparent'
-                : 'bg-white hover:bg-zinc-100 dark:bg-zinc-800/80 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700'
-            }`}
-            title="Abrir o cerrar la tabla de Mapa de Memoria y Resultados"
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Mapa Hex</span>
-            {validation && (
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  validation.passed ? 'bg-emerald-500' : 'bg-rose-500'
-                }`}
-              />
-            )}
-          </button>
+          {hasCircuit && (
+            <button
+              type="button"
+              onClick={() => setRightDrawerOpen((o) => !o)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${
+                rightDrawerOpen
+                  ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-transparent'
+                  : 'bg-white hover:bg-zinc-100 dark:bg-zinc-800/80 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700'
+              }`}
+              title="Abrir o cerrar la tabla de Mapa de Memoria y Resultados"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Mapa Hex</span>
+              {validation && (
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    validation.passed ? 'bg-emerald-500' : 'bg-rose-500'
+                  }`}
+                />
+              )}
+            </button>
+          )}
 
           <button
             type="button"
@@ -485,31 +585,61 @@ export function App() {
         dark={dark}
       />
 
-      {/* Full-Canvas Workspace with Collapsible Left Palette & Slide-Over Right Drawer */}
+      {/* Full-Canvas Workspace (Circuit OR Register/Flowchart Workbench) */}
       <main className="flex-1 flex min-h-0 overflow-hidden relative">
-        {/* Left: Hidden by default, hover-to-open Component Palette */}
-        <ComponentPalette
-          entries={sublevel.circuit.palette}
-          isExamMode={isExamMode}
-          pinned={sidebarPinned}
-          hovered={sidebarHovered}
-          onSetPinned={setSidebarPinned}
-          onSetHovered={setSidebarHovered}
-          onAddComponent={handleAddComponent}
-        />
+        {hasCircuit && sublevel.circuit && sublevel.memoryMapTask && liveAnalysis ? (
+          <>
+            {/* Left: Hidden by default, hover-to-open Component Palette */}
+            <ComponentPalette
+              entries={sublevel.circuit.palette}
+              isExamMode={isExamMode}
+              pinned={sidebarPinned}
+              hovered={sidebarHovered}
+              onSetPinned={setSidebarPinned}
+              onSetHovered={setSidebarHovered}
+              onAddComponent={handleAddComponent}
+            />
 
-        {/* Center: Protagonist Schematic SVG Canvas */}
-        <CircuitCanvas
-          cpuProfile={sublevel.circuit.cpuProfile}
-          dark={dark}
-          components={state.components}
-          wires={state.wires}
-          showLiveProbe={!isExamMode}
-          onMoveComponent={handleMoveComponent}
-          onDeleteComponent={handleDeleteComponent}
-          onAddWire={handleAddWire}
-          onDeleteWire={handleDeleteWire}
-        />
+            {/* Center: Protagonist Schematic SVG Canvas */}
+            <CircuitCanvas
+              cpuProfile={sublevel.circuit.cpuProfile}
+              dark={dark}
+              components={state.components}
+              wires={state.wires}
+              showLiveProbe={!isExamMode}
+              onMoveComponent={handleMoveComponent}
+              onDeleteComponent={handleDeleteComponent}
+              onAddWire={handleAddWire}
+              onDeleteWire={handleDeleteWire}
+            />
+          </>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-6 bg-zinc-50 dark:bg-[#121214]">
+            <div className="max-w-5xl mx-auto space-y-6">
+              {sublevel.registerTask && (
+                <RegisterWorkbench
+                  task={sublevel.registerTask}
+                  registerValues={state.registerValues}
+                  questionAnswers={state.questionAnswers}
+                  isExamMode={isExamMode}
+                  onToggleBit={handleToggleBit}
+                  onSelectAnswer={handleSelectAnswer}
+                />
+              )}
+
+              {sublevel.flowchartTask && (
+                <FlowchartWorkbench
+                  task={sublevel.flowchartTask}
+                  order={state.flowchartOrder}
+                  isExamMode={isExamMode}
+                  onAddBlock={handleAddFlowBlock}
+                  onRemoveAt={handleRemoveFlowAt}
+                  onMove={handleMoveFlow}
+                />
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Right: Slide-Over Drawer (Mapa Hex + Resultado), closed at start */}
         <aside
@@ -518,24 +648,26 @@ export function App() {
           }`}
         >
           <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-950/50 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setRightTab('memoryMap')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-3 border-b-2 transition ${
-                rightTab === 'memoryMap'
-                  ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-900'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Mapa Hex</span>
-            </button>
+            {hasCircuit && (
+              <button
+                type="button"
+                onClick={() => setRightTab('memoryMap')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-3 border-b-2 transition ${
+                  rightTab === 'memoryMap'
+                    ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-900'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Mapa Hex</span>
+              </button>
+            )}
 
             <button
               type="button"
               onClick={() => setRightTab('diagnostics')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-3 border-b-2 transition ${
-                rightTab === 'diagnostics'
+                rightTab === 'diagnostics' || !hasCircuit
                   ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-900'
                   : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
@@ -562,12 +694,12 @@ export function App() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4">
-            {rightTab === 'memoryMap' && (
+            {hasCircuit && liveAnalysis && rightTab === 'memoryMap' && (
               <MemoryMapPanel
                 sublevel={sublevel}
                 analysis={liveAnalysis}
                 tableRows={state.tableRows}
-                validation={validation}
+                validation={validation && 'regionResults' in validation ? validation : null}
                 isExamMode={isExamMode}
                 onUpdateRow={handleUpdateTableRow}
                 onAddRow={handleAddTableRow}
@@ -575,7 +707,7 @@ export function App() {
               />
             )}
 
-            {rightTab === 'diagnostics' && (
+            {(rightTab === 'diagnostics' || !hasCircuit) && (
               <DiagnosticsPanel validation={validation} />
             )}
           </div>

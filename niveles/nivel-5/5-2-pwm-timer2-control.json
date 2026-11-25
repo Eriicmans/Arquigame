@@ -1,0 +1,183 @@
+{
+  "id": "5-2",
+  "levelId": 5,
+  "order": 2,
+  "difficulty": "medio",
+  "assistMode": "guided",
+  "title": "Subnivel 5.2 · Control de Motores: Timer y PWM",
+  "subtitle": "Configuración de TMOD/TCON y cálculo de frecuencia y ciclo de trabajo en PWMP/PWM0",
+  "sourceRef": "Basado en Timer 2.pdf y Periféricos PWM del 80C552 (TMOD 89h, TCON 88h, PWMP FEh, PWM0 FCh)",
+  "mechanics": ["registers"],
+  "briefing": {
+    "statement": "Para regular la velocidad de un motor DC y generar una base de tiempos auxiliar en el 80C552, debes configurar el temporizador Timer 0 mediante TMOD (89h) y TCON (88h), y calcular los parámetros de los registros PWM (PWMP y PWM0). Configura el Timer 0 como temporizador de 16 bits (Modo 1: M1=0, M0=1) con reloj interno (C/T0=0) y sin control por puerta externa (GATE0=0), manteniendo el Timer 1 deshabilitado (bits a 0). En TCON, arranca únicamente el Timer 0 (TR0=1) con los flags TF1/TF0 limpios y Timer 1 parado (TR1=0).",
+    "objectives": [
+      "Configura TMOD (89h) para Timer 0 en Modo 1 (16 bits, reloj interno, GATE0 = 0) y Timer 1 en 0000.",
+      "Configura TCON (88h) para activar el conteo de Timer 0 (TR0 = 1) con TR1 = 0 y flags TF1 = TF0 = 0.",
+      "Calcula la frecuencia PWM a partir de PWMP y el valor de PWM0 para obtener un ciclo de trabajo (duty cycle) del 75 %."
+    ],
+    "mermaid": "flowchart LR\n  OSC[\"f_OSC = 12 MHz\"] --> DIV[\"Prescaler PWMP (FEh)\\nf_clk = f_OSC / (2·(1 + PWMP))\"]\n  DIV --> CNT[\"Contador 8 bits (255 pasos)\"]\n  CNT --> CMP[\"Comparador con PWM0 (FCh)\\nDuty = PWM0 / 255\"]\n  CMP --> MOT[\"Salida PWM0 → Driver Motor\"]",
+    "hints": [
+      "En TMOD (89h), el nibble bajo (b3..b0) corresponde a Timer 0: GATE0=0, C/T0=0, M1_0=0, M0_0=1 (0x01). El nibble alto (b7..b4) corresponde a Timer 1 y debe quedar a 0.",
+      "En TCON (88h), b4 es TR0 (poner a 1), b5 es TF0 (0), b6 es TR1 (0) y b7 es TF1 (0). Los bits b3..b0 de interrupciones externas INT0/INT1 no afectan al temporizador (déjalos a 0).",
+      "La frecuencia de salida PWM del 80C552 es f_PWM = f_OSC / (2 · (1 + PWMP) · 255), y el ciclo de trabajo es Duty = (PWM0 / 255) · 100 %."
+    ]
+  },
+  "registerTask": {
+    "registers": [
+      {
+        "id": "tmod",
+        "name": "TMOD",
+        "addressHex": "89h",
+        "purpose": "Selección de modo y fuente de reloj para Timer 0 (b3..b0) y Timer 1 (b7..b4)",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "M0_0",
+            "description": "Bit 0 de modo de Timer 0 (Modo 1 de 16 bits: M1_0=0, M0_0=1)",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 1,
+            "name": "M1_0",
+            "description": "Bit 1 de modo de Timer 0 (Modo 1 de 16 bits: M1_0=0, M0_0=1)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "C/T0",
+            "description": "Selector Contador/Temporizador de Timer 0 (0 = temporizador con reloj interno)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "GATE0",
+            "description": "Control por puerta externa /INT0 (0 = solo controlado por TR0)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 4,
+            "name": "M0_1",
+            "description": "Bit 0 de modo de Timer 1 (dejar a 0)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 5,
+            "name": "M1_1",
+            "description": "Bit 1 de modo de Timer 1 (dejar a 0)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 6,
+            "name": "C/T1",
+            "description": "Selector Contador/Temporizador de Timer 1 (dejar a 0)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 7,
+            "name": "GATE1",
+            "description": "Control por puerta externa /INT1 (dejar a 0)",
+            "expected": 0,
+            "initial": 0
+          }
+        ]
+      },
+      {
+        "id": "tcon",
+        "name": "TCON",
+        "addressHex": "88h",
+        "purpose": "Control de arranque (TR0/TR1) y flags de desbordamiento (TF0/TF1) de Timer 0 y 1",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "IT0",
+            "description": "Tipo de disparo INT0 (no usado, dejar a 0)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 1,
+            "name": "IE0",
+            "description": "Flag de interrupción externa INT0 (no usado, dejar a 0)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "IT1",
+            "description": "Tipo de disparo INT1 (no usado, dejar a 0)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "IE1",
+            "description": "Flag de interrupción externa INT1 (no usado, dejar a 0)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 4,
+            "name": "TR0",
+            "description": "Arranque del Timer 0 (1 = Timer 0 en marcha)",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 5,
+            "name": "TF0",
+            "description": "Flag de desbordamiento de Timer 0 (limpiar a 0)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 6,
+            "name": "TR1",
+            "description": "Arranque del Timer 1 (0 = Timer 1 parado)",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 7,
+            "name": "TF1",
+            "description": "Flag de desbordamiento de Timer 1 (limpiar a 0)",
+            "expected": 0,
+            "initial": 0
+          }
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "id": "q-pwm-freq",
+        "prompt": "Con un cristal f_OSC = 12 MHz y el registro prescaler PWMP = 24 (decimal), ¿cuál es la frecuencia aproximada de la señal PWM0 en el 80C552 usando f_PWM = f_OSC / (2 · (1 + PWMP) · 255)?",
+        "options": [
+          "≈ 941 Hz",
+          "≈ 470 Hz",
+          "≈ 23,5 kHz",
+          "≈ 1,88 kHz"
+        ],
+        "correctIndex": 0,
+        "explanation": "Sustituyendo en la fórmula: f_PWM = 12.000.000 / (2 · (1 + 24) · 255) = 12.000.000 / (50 · 255) = 12.000.000 / 12.750 ≈ 941,18 Hz."
+      },
+      {
+        "id": "q-pwm-duty",
+        "prompt": "Si queremos controlar un motor al 75 % de potencia (ciclo de trabajo Duty = PWM0 / 255 ≈ 0,75), ¿qué valor entero debemos cargar en el registro PWM0 (FCh)?",
+        "options": [
+          "191 (BFh)",
+          "128 (80h)",
+          "64 (40h)",
+          "255 (FFh)"
+        ],
+        "correctIndex": 0,
+        "explanation": "El ciclo de trabajo en el 80C552 es PWM0 / 255. Para un 75 %, PWM0 = 0,75 · 255 = 191,25 ≈ 191 (BFh), que entrega un 74,9 %."
+      }
+    ]
+  }
+}

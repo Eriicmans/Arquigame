@@ -1,0 +1,131 @@
+{
+  "id": "2-1",
+  "levelId": 2,
+  "order": 1,
+  "difficulty": "tutorial",
+  "assistMode": "guided",
+  "title": "Subnivel 2.1 · Von Neumann vs Harvard y Registro PCON",
+  "subtitle": "Comparativa 8085 vs 80C552 (μP vs μC) y modos de bajo consumo en PCON (87h)",
+  "sourceRef": "Basado en 1a_introduccion_general.pdf e Intro 80C552.pdf",
+  "mechanics": ["registers"],
+  "briefing": {
+    "statement": "En este nivel comparamos la arquitectura Von Neumann de un microprocesador clásico (Intel 8085) frente a la arquitectura Harvard modificada de un microcontrolador integrado (Philips 80C552). Además, configurarás el registro SFR PCON (dirección 87h) del 80C552 para activar el modo de bajo consumo Idle, deteniendo el reloj de la CPU mientras los periféricos integrados (temporizadores, UART e interrupciones) permanecen activos.",
+    "objectives": [
+      "Configura el registro PCON (0x87) para entrar en modo Idle (IDL = 1, PD = 0), manteniendo SMOD = 0 y las banderas de usuario GF1 = 0, GF0 = 0.",
+      "Identifica las diferencias clave entre arquitectura Von Neumann (8085) y Harvard (80C552).",
+      "Distingue las capacidades integradas de un microcontrolador (μC) frente a un microprocesador (μP)."
+    ],
+    "mermaid": "flowchart LR\n  subgraph VN[\"Von Neumann (Intel 8085 · μP)\"]\n    CPU1[\"CPU 8085\"] <-->|\"Bus único (64 kB)\"| MEM1[\"Programa + Datos (IO/M=0)\"]\n  end\n  subgraph HV[\"Harvard (80C552 · μC)\"]\n    CPU2[\"CPU 80C552 + Periféricos\"] -->|\"/PSEN\"| PROG[\"Memoria de Programa (64 kB)\"]\n    CPU2 <-->|\"/RD, /WR\"| DATA[\"Memoria de Datos (RAM int./ext.)\"]\n  end",
+    "hints": [
+      "En PCON (87h), el bit 0 es IDL (Idle Mode) y el bit 1 es PD (Power-Down). Si ambos valen 1, PD tiene prioridad y detiene todo el oscilador.",
+      "Para el modo Idle con periféricos activos, fija IDL = 1 y PD = 0, dejando SMOD, GF1 y GF0 a 0. Los bits reservados (4..6) no afectan al resultado.",
+      "Recuerda: el 8085 es un μP Von Neumann (un único espacio de memoria de 64 kB), mientras que el 80C552 es un μC Harvard con espacios separados para programa (/PSEN) y datos (/RD, /WR)."
+    ]
+  },
+  "registerTask": {
+    "registers": [
+      {
+        "id": "pcon",
+        "name": "PCON",
+        "addressHex": "0x87",
+        "purpose": "Power Control Register (80C552) — Configurar modo Idle (IDL=1, PD=0) sin doblar baudios (SMOD=0)",
+        "bits": [
+          {
+            "bit": 0,
+            "name": "IDL",
+            "description": "Idle Mode: 1 detiene el reloj de la CPU manteniendo activos los periféricos e interrupciones.",
+            "expected": 1,
+            "initial": 0
+          },
+          {
+            "bit": 1,
+            "name": "PD",
+            "description": "Power-Down Mode: 1 detiene el oscilador principal (máximo ahorro; tiene prioridad sobre IDL).",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 2,
+            "name": "GF0",
+            "description": "General Purpose Flag 0: bandera de propósito general para software de usuario.",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 3,
+            "name": "GF1",
+            "description": "General Purpose Flag 1: bandera de propósito general para software de usuario.",
+            "expected": 0,
+            "initial": 0
+          },
+          {
+            "bit": 4,
+            "name": "-",
+            "description": "Bit reservado / no implementado en el 80C552.",
+            "expected": null,
+            "initial": 0
+          },
+          {
+            "bit": 5,
+            "name": "-",
+            "description": "Bit reservado / no implementado en el 80C552.",
+            "expected": null,
+            "initial": 0
+          },
+          {
+            "bit": 6,
+            "name": "-",
+            "description": "Bit reservado / no implementado en el 80C552.",
+            "expected": null,
+            "initial": 0
+          },
+          {
+            "bit": 7,
+            "name": "SMOD",
+            "description": "Double Baud Rate: 1 duplica la velocidad de transmisión de la UART0 en modos 1, 2 y 3.",
+            "expected": 0,
+            "initial": 0
+          }
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "id": "q-vn-vs-harvard",
+        "prompt": "¿Cuál es la diferencia fundamental entre la arquitectura del Intel 8085 (Von Neumann) y la del 80C552 (Harvard)?",
+        "options": [
+          "El 8085 comparte un único espacio de memoria de 64 kB para código y datos, mientras que el 80C552 separa la memoria de programa (/PSEN) de la de datos (/RD, /WR).",
+          "El 8085 utiliza buses separados para código y datos, mientras que el 80C552 unifica ambos en un único bus sin señales de control.",
+          "El 80C552 no puede direccionar memoria externa, a diferencia del 8085.",
+          "Ambos procesadores son Von Neumann, pero el 80C552 trabaja a 16 bits."
+        ],
+        "correctIndex": 0,
+        "explanation": "El 8085 sigue el modelo Von Neumann con un único espacio de 64 kB para programa y datos (distinguiendo E/S con IO/M). El 80C552 sigue el modelo Harvard con espacios independientes de programa (/PSEN) y datos (/RD, /WR)."
+      },
+      {
+        "id": "q-up-vs-uc",
+        "prompt": "¿Por qué se clasifica al 80C552 como microcontrolador (μC) y al 8085 como microprocesador (μP)?",
+        "options": [
+          "Porque el 80C552 integra en el mismo encapsulado CPU, RAM, puertos E/S, temporizadores, ADC y PWM, mientras que el 8085 solo contiene la CPU y requiere memorias y periféricos externos.",
+          "Porque el 8085 no tiene ALU ni registros internos.",
+          "Porque el 80C552 carece de bus de datos de 8 bits.",
+          "Porque un microcontrolador nunca puede conectarse a memoria externa."
+        ],
+        "correctIndex": 0,
+        "explanation": "Un μP (8085) requiere chips externos para memoria y E/S para formar un sistema mínimo; un μC (80C552) integra CPU, memoria interna, puertos digitales y periféricos (ADC, PWM, UART, Timers) en un solo circuito integrado."
+      },
+      {
+        "id": "q-pcon-wakeup",
+        "prompt": "Si el 80C552 está en modo Idle (PCON.0 = 1), ¿qué ocurre con los temporizadores y cómo puede salir la CPU de ese estado?",
+        "options": [
+          "Los periféricos siguen funcionando y cualquier interrupción habilitada o un reset despierta a la CPU.",
+          "Se detiene el oscilador principal y solo un corte de alimentación puede reiniciar el chip.",
+          "Se borra toda la RAM interna y los registros SFR vuelven a 00h.",
+          "Los puertos E/S pasan a alta impedancia hasta que se escribe 0 en PCON.1."
+        ],
+        "correctIndex": 0,
+        "explanation": "En modo Idle se detiene únicamente el reloj hacia la CPU; los periféricos (Timers, UART, ADC, lógica de interrupciones) continúan activos y cualquier interrupción habilitada o reset saca al microcontrolador del modo Idle."
+      }
+    ]
+  }
+}

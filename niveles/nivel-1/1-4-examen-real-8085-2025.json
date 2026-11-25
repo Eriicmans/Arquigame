@@ -6,7 +6,7 @@
   "assistMode": "exam",
   "title": "Subnivel 1.4 · Examen Real 2025-01-07 (Intel 8085)",
   "subtitle": "Ejercicio 3 completo sin ayudas: UVPROM 16k×4 en paralelo y 3 SRAM con zona espejo",
-  "sourceRef": "Examen 2025-01-07 (Ejercicio 3 — Intel 8085, 64 kB)",
+  "sourceRef": "2025-01-07 Enun 01.07 es.pdf (Ej. 3) + 2025-01-07 Sol 1.04 es.pdf",
   "mechanics": ["wiring", "memoryMap"],
   "briefing": {
     "statement": "Ejercicio de examen (2025-01-07). Diseña desde cero la decodificación de direcciones de un sistema basado en Intel 8085 (64 kB, A15..A0, D7..D0, IO/M = 0 para memoria, /RD, /WR, vector de reset en 0000h) cumpliendo el siguiente mapa:\n• 0000h–3FFFh (16 kB): UVPROM formada por 2 chips 16k × 4 bit en paralelo (D0..D3 y D4..D7).\n• 4000h–5FFFh (8 kB): SRAM 0 (8k × 8).\n• 6000h–7FFFh (8 kB): SRAM 1 (8k × 8).\n• 8000h–BFFFh (16 kB lógicos, 8 kB físicos en espejo): SRAM 2 (8k × 8), donde A000h–BFFFh es imagen de 8000h–9FFFh.\n• C000h–FFFFh (16 kB): VACÍO.\nAsegura el aislamiento respecto a ciclos de E/S (IO/M = 1) y completa la tabla del mapa de memoria.",
