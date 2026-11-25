@@ -4,120 +4,100 @@
   "order": 2,
   "difficulty": "medio",
   "assistMode": "guided",
-  "title": "Subnivel 4.2 · Rutina ISR Segura, Pila y RETI (80C552)",
-  "subtitle": "Salto desde el vector 000Bh, preservación LIFO de contexto y retorno con RETI",
-  "sourceRef": "3_interrupciones.pdf + 2-ejercicios_interrupciones (2).pdf",
+  "title": "Subnivel 4.2 · Rutina ISR, Pila y RETI",
+  "subtitle": "Ordenar el flujo seguro de atención a interrupción respetando el orden LIFO y RETI",
+  "sourceRef": "Basado en 2-ejercicios_interrupciones (2).pdf y AdC - Teoria 03.02",
   "mechanics": ["flowchart"],
   "briefing": {
-    "statement": "En el 80C552, cada vector de interrupción solo dispone de 8 bytes antes del siguiente vector (por ejemplo, 000Bh para Timer 0 antes de 0013h para EX1). Por ello, en el vector se coloca un salto largo (LJMP) hacia la rutina ISR real. Además, la CPU solo apila automáticamente el contador de programa (PC), por lo que la ISR debe salvar y restaurar manualmente en orden LIFO los registros modificados (PSW y ACC) y finalizar con RETI. Construye el flujo correcto de la ISR de Timer 0 descartando los bloques con errores clásicos de examen.",
+    "statement": "Un error clásico de examen es corromper el acumulador (ACC) o los flags (PSW) durante una interrupción, o usar RET en lugar de RETI. Ordena los bloques para construir la ISR segura de Timer 0 en el 80C552 y descarta los bloques con errores.",
     "objectives": [
-      "Parte desde el vector 000Bh y salta con LJMP ISR_T0 para no invadir el vector adyacente (0013h).",
-      "Salva PSW y ACC en la pila (PUSH PSW, PUSH ACC) antes de ejecutar la lógica de la ISR.",
-      "Atiende el evento / recarga el Timer, limpia el flag TF0 si aplica y restaura el contexto en orden inverso LIFO (POP ACC antes que POP PSW).",
-      "Finaliza exclusivamente con RETI y descarta los bloques trampa (RET y POP PSW antes que POP ACC)."
+      "Coloca el salto desde el vector hardware 000Bh hacia la rutina ISR_T0.",
+      "Salva el contexto (PSW y ACC) en la pila antes de modificar registros.",
+      "Atiende el evento, restaura los registros en orden inverso (LIFO) y retorna con RETI."
     ],
-    "mermaid": "flowchart TD\n  V[\"Vector 000Bh\"] --> J[\"LJMP ISR_T0\"]\n  J --> P1[\"PUSH PSW / PUSH ACC\"]\n  P1 --> A[\"Atender evento / Limpiar TF0\"]\n  A --> P2[\"POP ACC / POP PSW\"]\n  P2 --> R[\"RETI\"]",
+    "mermaid": "flowchart TD\n  V[\"Vector 000Bh: LJMP ISR_T0\"] --> P1[\"PUSH PSW / PUSH ACC\"]\n  P1 --> W[\"Recargar Timer y limpiar flag\"]\n  W --> P2[\"POP ACC / POP PSW\"]\n  P2 --> R[\"RETI\"]",
     "hints": [
-      "La pila es LIFO (Last-In, First-Out): si primero haces PUSH PSW y luego PUSH ACC, debes restaurar primero ACC (POP ACC) y después PSW (POP PSW).",
-      "Nunca uses RET al final de una ISR: RET solo desapila el PC, mientras que RETI además informa al controlador de interrupciones de que el nivel de prioridad ha quedado libre.",
-      "El bloque correcto tras atender el Timer es limpiar TF0 (si el modo o la lógica lo requiere) antes de restaurar la pila."
+      "La pila es LIFO (Last-In, First-Out): si haces primero PUSH PSW y luego PUSH ACC, al salir debes hacer primero POP ACC y después POP PSW.",
+      "Nunca uses RET al final de una ISR: RET no restaura la lógica interna de prioridad de interrupciones en curso, solo RETI lo hace.",
+      "En el 80C552 el flag TF0 se limpia por hardware al entrar en la ISR de Timer 0, pero si atendemos una fuente cuyo flag no se borra solo (como RI/TI o ADCI), hay que limpiarlo explícitamente."
     ]
   },
   "flowchartTask": {
-    "title": "Secuencia segura de la ISR de Timer 0 (000Bh)",
+    "title": "Flujo seguro de la ISR del Timer 0 (80C552)",
     "blocks": [
       {
-        "id": "vec-000b",
-        "label": "Vector 000Bh (TF0)",
-        "code": "ORG 000Bh",
+        "id": "b-vec",
+        "label": "Vector 000Bh: Salto a la ISR",
+        "code": "ORG 000Bh ; LJMP ISR_T0",
         "kind": "start",
-        "detail": "Dirección fija de entrada en memoria de programa cuando salta la interrupción de Timer 0."
+        "detail": "Redirige la ejecución desde el vector hardware de 8 bytes"
       },
       {
-        "id": "ljmp-isr",
-        "label": "LJMP ISR_T0",
-        "code": "LJMP ISR_T0",
-        "kind": "action",
-        "detail": "Salto largo (3 bytes) fuera de la tabla de vectores para no invadir 0013h."
-      },
-      {
-        "id": "push-psw",
-        "label": "PUSH PSW",
+        "id": "b-push-psw",
+        "label": "Salvar registro de estado (PSW)",
         "code": "PUSH PSW",
         "kind": "stack",
-        "detail": "Guarda la palabra de estado del programa (flags C, AC, OV, banco de registros RS1:RS0)."
+        "detail": "Guarda los flags (CY, OV, banco de registros)"
       },
       {
-        "id": "push-acc",
-        "label": "PUSH ACC",
+        "id": "b-push-acc",
+        "label": "Salvar acumulador (ACC)",
         "code": "PUSH ACC",
         "kind": "stack",
-        "detail": "Guarda el acumulador A en la cima de la pila."
+        "detail": "Preserva el acumulador del programa principal"
       },
       {
-        "id": "handle-t0",
-        "label": "Atender evento / Recargar Timer",
-        "code": "MOV TH0, #HIGH ; MOV TL0, #LOW",
+        "id": "b-work",
+        "label": "Recargar Timer 0 y actualizar estado",
+        "code": "MOV TH0, #0D8h ; MOV TL0, #0F0h",
         "kind": "action",
-        "detail": "Ejecuta la tarea periódica y recarga TH0/TL0 si no está en modo auto-recarga."
+        "detail": "Atiende el evento periódico de 10 ms"
       },
       {
-        "id": "clear-tf0",
-        "label": "Limpiar flag TF0 si aplica",
-        "code": "CLR TF0",
-        "kind": "action",
-        "detail": "Asegura el borrado del flag de desbordamiento cuando corresponde."
-      },
-      {
-        "id": "pop-acc",
-        "label": "POP ACC",
+        "id": "b-pop-acc",
+        "label": "Recuperar acumulador (ACC)",
         "code": "POP ACC",
         "kind": "stack",
-        "detail": "Restaura el acumulador A (último en entrar, primero en salir)."
+        "detail": "Orden LIFO: el último en entrar es el primero en salir"
       },
       {
-        "id": "pop-psw",
-        "label": "POP PSW",
+        "id": "b-pop-psw",
+        "label": "Recuperar estado (PSW)",
         "code": "POP PSW",
         "kind": "stack",
-        "detail": "Restaura los flags y el banco de registros originales."
+        "detail": "Restaura los flags originales antes de volver"
       },
       {
-        "id": "reti",
-        "label": "RETI",
+        "id": "b-reti",
+        "label": "Retornar de la interrupción",
         "code": "RETI",
         "kind": "return",
-        "detail": "Desapila el PC y libera el nivel de prioridad activo en el controlador de interrupciones."
+        "detail": "Restaura PC y libera el nivel de prioridad hardware"
       },
       {
-        "id": "bug-ret",
-        "label": "RET (en lugar de RETI)",
+        "id": "b-bug-ret",
+        "label": "Retornar con RET estándar",
         "code": "RET",
         "kind": "bug",
-        "detail": "Bug clásico: RET no avisa al hardware de fin de interrupción, bloqueando futuras interrupciones de igual o menor prioridad."
+        "detail": "Trampa: bloquea futuras interrupciones de igual o menor prioridad"
       },
       {
-        "id": "bug-pop-order",
-        "label": "POP PSW antes que POP ACC",
+        "id": "b-bug-pop-order",
+        "label": "Recuperar PSW antes que ACC",
         "code": "POP PSW ; POP ACC",
         "kind": "bug",
-        "detail": "Bug de pila LIFO: invierte el orden de extracción y corrompe tanto ACC como PSW."
+        "detail": "Trampa: viola el orden LIFO e intercambia los valores de ACC y PSW"
       }
     ],
     "expectedOrder": [
-      "vec-000b",
-      "ljmp-isr",
-      "push-psw",
-      "push-acc",
-      "handle-t0",
-      "clear-tf0",
-      "pop-acc",
-      "pop-psw",
-      "reti"
+      "b-vec",
+      "b-push-psw",
+      "b-push-acc",
+      "b-work",
+      "b-pop-acc",
+      "b-pop-psw",
+      "b-reti"
     ],
-    "distractorIds": [
-      "bug-ret",
-      "bug-pop-order"
-    ]
+    "distractorIds": ["b-bug-ret", "b-bug-pop-order"]
   }
 }

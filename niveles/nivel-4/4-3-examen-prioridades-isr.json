@@ -4,16 +4,16 @@
   "order": 3,
   "difficulty": "examen",
   "assistMode": "exam",
-  "title": "Subnivel 4.3 · Examen: Prioridades (IEN0/IEN1/IP0/IP1) e ISR",
-  "subtitle": "Jerarquía de 4 niveles efectivos, latencia multiciclo y flujo de ISR sin ayudas",
-  "sourceRef": "2-ejercicios_interrupciones (2).pdf + AdC - Teoria 03.02 es Interrupciones 2024-10-04 - sin soluciones.pdf",
+  "title": "Subnivel 4.3 · Examen: Prioridades (IP0/IP1) e ISR",
+  "subtitle": "Configurar 4 niveles de prioridad y depurar una rutina concurrente sin ayudas",
+  "sourceRef": "Basado en 3_interrupciones.pdf y exámenes 80C552",
   "mechanics": ["registers", "flowchart"],
   "briefing": {
-    "statement": "Ejercicio tipo examen sin ayudas. Un sistema basado en 80C552 debe habilitar exactamente cuatro fuentes de interrupción: Timer 0 (ET0) y externa 0 (EX0) en IEN0 (A8h), junto con Timer 2 por desbordamiento (ET2) y captura 0 de Timer 2 (ECT0) en IEN1 (E8h), manteniendo habilitación global EA = 1 y el resto de fuentes deshabilitadas.\nConfigura IP0 (B8h) e IP1 (F8h) para establecer esta jerarquía efectiva de 4 niveles de prioridad (de mayor a menor):\n1. ET0 (prioridad hardware alta, gana por polling en IEN0 frente a IEN1)\n2. ECT0 (prioridad hardware alta en IEN1)\n3. EX0 (prioridad hardware baja, gana por polling frente a ET2)\n4. ET2 (prioridad hardware baja, último en polling)\nAdemás, responde a las cuestiones sobre ejecución de instrucciones multiciclo ante una interrupción y construye el diagrama de flujo seguro de la ISR de ET0 descartando todos los bloques con errores.",
+    "statement": "En un sistema de control en tiempo real sobre 80C552 se usan dos interrupciones: la externa EX0 (emergencia, prioridad máxima nivel 3) y el convertidor ADC (EAD, prioridad nivel 1). Configura IEN0 (A8h), IEN1 (E8h), IP0 (B8h) e IP1 (F8h) para habilitarlas con dichas prioridades y ordena la ISR de emergencia.",
     "objectives": [
-      "Configura los 4 registros SFR de interrupción del 80C552: IEN0 (A8h), IEN1 (E8h), IP0 (B8h) e IP1 (F8h).",
-      "Responde correctamente a las preguntas sobre latencia en instrucciones multiciclo y jerarquía de prioridades.",
-      "Ordena la rutina ISR completa de Timer 0 eliminando todos los bloques distractor con bugs."
+      "Habilita EA y EX0 en IEN0 (A8h) y EAD en IEN1 (E8h).",
+      "Asigna prioridad nivel 3 (IP1.x=1, IP0.x=1) a EX0 y nivel 1 (IP1.x=0, IP0.x=1) al ADC en IP0/IP1.",
+      "Ordena la secuencia correcta de la ISR de emergencia descartando los bloques con errores."
     ],
     "hints": []
   },
@@ -22,390 +22,114 @@
       {
         "id": "ien0",
         "name": "IEN0",
-        "addressHex": "A8h",
-        "purpose": "Habilitación global (EA) y de fuentes estándar/ADC/serie.",
+        "addressHex": "0xA8",
+        "purpose": "Habilitar EA y EX0",
         "bits": [
-          {
-            "bit": 0,
-            "name": "EX0",
-            "description": "Habilita interrupción externa 0 (INT0).",
-            "expected": 1,
-            "initial": 0
-          },
-          {
-            "bit": 1,
-            "name": "ET0",
-            "description": "Habilita interrupción por desbordamiento de Timer 0 (TF0).",
-            "expected": 1,
-            "initial": 0
-          },
-          {
-            "bit": 2,
-            "name": "EX1",
-            "description": "Habilita interrupción externa 1 (INT1).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 3,
-            "name": "ET1",
-            "description": "Habilita interrupción por desbordamiento de Timer 1 (TF1).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 4,
-            "name": "ES0",
-            "description": "Habilita interrupción del puerto serie 0 (UART).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 5,
-            "name": "ES1",
-            "description": "Habilita interrupción del puerto serie 1 (I²C).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 6,
-            "name": "EAD",
-            "description": "Habilita interrupción de fin de conversión del ADC.",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 7,
-            "name": "EA",
-            "description": "Habilitación global de interrupciones.",
-            "expected": 1,
-            "initial": 0
-          }
-        ]
-      },
-      {
-        "id": "ien1",
-        "name": "IEN1",
-        "addressHex": "E8h",
-        "purpose": "Habilitación de interrupciones extendidas del Timer 2 (captura, comparación y desbordamiento).",
-        "bits": [
-          {
-            "bit": 0,
-            "name": "ECT0",
-            "description": "Habilita interrupción de captura 0 del Timer 2.",
-            "expected": 1,
-            "initial": 0
-          },
-          {
-            "bit": 1,
-            "name": "ECT1",
-            "description": "Habilita interrupción de captura 1 del Timer 2.",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 2,
-            "name": "ECT2",
-            "description": "Habilita interrupción de captura 2 del Timer 2.",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 3,
-            "name": "ECT3",
-            "description": "Habilita interrupción de captura 3 del Timer 2.",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 4,
-            "name": "ECM0",
-            "description": "Habilita interrupción de comparador 0 del Timer 2.",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 5,
-            "name": "ECM1",
-            "description": "Habilita interrupción de comparador 1 del Timer 2.",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 6,
-            "name": "ECM2",
-            "description": "Habilita interrupción de comparador 2 del Timer 2.",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 7,
-            "name": "ET2",
-            "description": "Habilita interrupción por desbordamiento del Timer 2.",
-            "expected": 1,
-            "initial": 0
-          }
+          { "bit": 7, "name": "EA", "description": "Enable All", "expected": 1, "initial": 0 },
+          { "bit": 6, "name": "EAD", "description": "ADC interrupt enable", "expected": 1, "initial": 0 },
+          { "bit": 5, "name": "ES1", "description": "SIO1 enable", "expected": 0, "initial": 0 },
+          { "bit": 4, "name": "ES0", "description": "SIO0 enable", "expected": 0, "initial": 0 },
+          { "bit": 3, "name": "ET1", "description": "Timer 1 enable", "expected": 0, "initial": 0 },
+          { "bit": 2, "name": "EX1", "description": "Ext 1 enable", "expected": 0, "initial": 0 },
+          { "bit": 1, "name": "ET0", "description": "Timer 0 enable", "expected": 0, "initial": 0 },
+          { "bit": 0, "name": "EX0", "description": "Ext 0 enable", "expected": 1, "initial": 0 }
         ]
       },
       {
         "id": "ip0",
         "name": "IP0",
-        "addressHex": "B8h",
-        "purpose": "Nivel de prioridad (1 = alta, 0 = baja) para las fuentes de IEN0.",
+        "addressHex": "0xB8",
+        "purpose": "Prioridad baja (bit 0 de prioridad de 2 bits)",
         "bits": [
-          {
-            "bit": 0,
-            "name": "PX0",
-            "description": "Prioridad de la interrupción externa 0 (EX0).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 1,
-            "name": "PT0",
-            "description": "Prioridad del Timer 0 (ET0).",
-            "expected": 1,
-            "initial": 0
-          },
-          {
-            "bit": 2,
-            "name": "PX1",
-            "description": "Prioridad de la interrupción externa 1 (EX1).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 3,
-            "name": "PT1",
-            "description": "Prioridad del Timer 1 (ET1).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 4,
-            "name": "PS0",
-            "description": "Prioridad del puerto serie 0 / UART (ES0).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 5,
-            "name": "PS1",
-            "description": "Prioridad del puerto serie 1 / I²C (ES1).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 6,
-            "name": "PAD",
-            "description": "Prioridad del conversor A/D (EAD).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 7,
-            "name": "—",
-            "description": "Bit reservado / no utilizado en IP0.",
-            "expected": null,
-            "initial": 0
-          }
+          { "bit": 7, "name": "-", "description": "Reservado", "expected": null, "initial": 0 },
+          { "bit": 6, "name": "PAD", "description": "Bit bajo prioridad ADC", "expected": 1, "initial": 0 },
+          { "bit": 5, "name": "PS1", "description": "Bit bajo prioridad SIO1", "expected": 0, "initial": 0 },
+          { "bit": 4, "name": "PS0", "description": "Bit bajo prioridad SIO0", "expected": 0, "initial": 0 },
+          { "bit": 3, "name": "PT1", "description": "Bit bajo prioridad Timer 1", "expected": 0, "initial": 0 },
+          { "bit": 2, "name": "PX1", "description": "Bit bajo prioridad Ext 1", "expected": 0, "initial": 0 },
+          { "bit": 1, "name": "PT0", "description": "Bit bajo prioridad Timer 0", "expected": 0, "initial": 0 },
+          { "bit": 0, "name": "PX0", "description": "Bit bajo prioridad Ext 0", "expected": 1, "initial": 0 }
         ]
       },
       {
         "id": "ip1",
         "name": "IP1",
-        "addressHex": "F8h",
-        "purpose": "Nivel de prioridad (1 = alta, 0 = baja) para las fuentes de IEN1 (Timer 2).",
+        "addressHex": "0xF8",
+        "purpose": "Prioridad alta (bit 1 de prioridad de 2 bits)",
         "bits": [
-          {
-            "bit": 0,
-            "name": "PCT0",
-            "description": "Prioridad de captura 0 del Timer 2 (ECT0).",
-            "expected": 1,
-            "initial": 0
-          },
-          {
-            "bit": 1,
-            "name": "PCT1",
-            "description": "Prioridad de captura 1 del Timer 2 (ECT1).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 2,
-            "name": "PCT2",
-            "description": "Prioridad de captura 2 del Timer 2 (ECT2).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 3,
-            "name": "PCT3",
-            "description": "Prioridad de captura 3 del Timer 2 (ECT3).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 4,
-            "name": "PCM0",
-            "description": "Prioridad de comparador 0 del Timer 2 (ECM0).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 5,
-            "name": "PCM1",
-            "description": "Prioridad de comparador 1 del Timer 2 (ECM1).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 6,
-            "name": "PCM2",
-            "description": "Prioridad de comparador 2 del Timer 2 (ECM2).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 7,
-            "name": "PT2",
-            "description": "Prioridad de desbordamiento del Timer 2 (ET2).",
-            "expected": 0,
-            "initial": 0
-          }
+          { "bit": 7, "name": "-", "description": "Reservado", "expected": null, "initial": 0 },
+          { "bit": 6, "name": "PADH", "description": "Bit alto prioridad ADC", "expected": 0, "initial": 0 },
+          { "bit": 5, "name": "PS1H", "description": "Bit alto prioridad SIO1", "expected": 0, "initial": 0 },
+          { "bit": 4, "name": "PS0H", "description": "Bit alto prioridad SIO0", "expected": 0, "initial": 0 },
+          { "bit": 3, "name": "PT1H", "description": "Bit alto prioridad Timer 1", "expected": 0, "initial": 0 },
+          { "bit": 2, "name": "PX1H", "description": "Bit alto prioridad Ext 1", "expected": 0, "initial": 0 },
+          { "bit": 1, "name": "PT0H", "description": "Bit alto prioridad Timer 0", "expected": 0, "initial": 0 },
+          { "bit": 0, "name": "PX0H", "description": "Bit alto prioridad Ext 0", "expected": 1, "initial": 0 }
         ]
       }
     ],
     "questions": [
       {
         "id": "q-multicycle",
-        "prompt": "Si el 80C552 está ejecutando una instrucción multiciclo (por ejemplo, MUL AB o DIV AB de 4 ciclos máquina) y se activa una interrupción habilitada en el ciclo 2, ¿qué hace la CPU?",
+        "prompt": "Si EX0 se activa justo en el segundo ciclo máquina de una instrucción MUL AB (que dura 4 ciclos), ¿cuándo salta el 80C552 al vector 0003h?",
         "options": [
-          "Aborta inmediatamente la instrucción en curso, apila el PC y salta al vector.",
-          "Completa todos los ciclos de la instrucción en curso antes de apilar el PC y saltar al vector.",
-          "Ejecuta la ISR en paralelo sin detener la instrucción multiciclo.",
-          "Descarta la petición de interrupción porque solo se muestrean en instrucciones de 1 ciclo."
+          "Inmediatamente en el ciclo 2, abortando MUL AB",
+          "Al finalizar los 4 ciclos completos de MUL AB",
+          "Solo cuando el programa principal ejecute un RETI",
+          "Después de completar también la siguiente instrucción"
         ],
         "correctIndex": 1,
-        "explanation": "El 80C552 nunca interrumpe una instrucción a mitad de su ejecución: termina todos los ciclos máquina de la instrucción actual (e incluso ejecuta una instrucción adicional si la actual escribió en IEN0/IEN1/IP0/IP1 o fue RETI) antes de realizar el LCALL implícito al vector."
-      },
-      {
-        "id": "q-preemption",
-        "prompt": "Con la configuración pedida (PT0 = 1, PCT0 = 1, PX0 = 0, PT2 = 0), si la CPU está ejecutando la ISR de EX0 y llega simultáneamente una petición de ECT0, ¿qué ocurre?",
-        "options": [
-          "ECT0 espera a que termine la ISR de EX0 porque EX0 tiene mejor orden de polling.",
-          "ECT0 interrumpe (anida) inmediatamente a la ISR de EX0 al tener prioridad hardware alta (PCT0 = 1).",
-          "Ambas ISR se bloquean hasta que termine el Timer 0.",
-          "La CPU ignora ECT0 porque ya hay una interrupción en curso."
-        ],
-        "correctIndex": 1,
-        "explanation": "Una interrupción de prioridad alta (PCT0 = 1) puede interrumpir a cualquier ISR de prioridad baja (PX0 = 0), independientemente del orden de polling dentro de un mismo nivel."
+        "explanation": "Regla de oro: la CPU siempre termina la instrucción multiciclo en curso antes de apilar el PC y saltar a la ISR."
       }
     ]
   },
   "flowchartTask": {
-    "title": "ISR segura de Timer 0 (ET0) con preservación completa",
+    "title": "ISR de Emergencia EX0 (interrumpe a la ISR del ADC)",
     "blocks": [
       {
-        "id": "vec-000b",
-        "label": "Vector 000Bh (TF0)",
-        "code": "ORG 000Bh",
-        "kind": "start",
-        "detail": "Punto de entrada hardware tras completar la instrucción en curso y apilar el PC."
+        "id": "e-vec",
+        "label": "Vector 0003h: LJMP ISR_EMERG",
+        "code": "ORG 0003h ; LJMP ISR_EMERG",
+        "kind": "start"
       },
       {
-        "id": "ljmp-isr",
-        "label": "LJMP ISR_T0",
-        "code": "LJMP ISR_T0",
-        "kind": "action",
-        "detail": "Salta fuera de la zona de vectores (8 bytes) hacia la rutina principal."
+        "id": "e-push",
+        "label": "Salvar contexto (PSW y ACC)",
+        "code": "PUSH PSW ; PUSH ACC",
+        "kind": "stack"
       },
       {
-        "id": "push-psw",
-        "label": "PUSH PSW",
-        "code": "PUSH PSW",
-        "kind": "stack",
-        "detail": "Salva el registro de estado PSW en la pila."
+        "id": "e-act",
+        "label": "Cortar actuadores y marcar FLAG_EMERG",
+        "code": "MOV PWM0, #00h ; SETB FLAG_EMERG",
+        "kind": "action"
       },
       {
-        "id": "push-acc",
-        "label": "PUSH ACC",
-        "code": "PUSH ACC",
-        "kind": "stack",
-        "detail": "Salva el acumulador A en la pila."
+        "id": "e-pop",
+        "label": "Restaurar contexto en orden LIFO",
+        "code": "POP ACC ; POP PSW",
+        "kind": "stack"
       },
       {
-        "id": "handle-t0",
-        "label": "Atender evento / Recargar Timer",
-        "code": "MOV TH0, #HIGH ; MOV TL0, #LOW",
-        "kind": "action",
-        "detail": "Procesa la interrupción y recarga el temporizador."
-      },
-      {
-        "id": "clear-tf0",
-        "label": "Limpiar flag TF0 si aplica",
-        "code": "CLR TF0",
-        "kind": "action",
-        "detail": "Limpia explícitamente el flag si la configuración lo requiere."
-      },
-      {
-        "id": "pop-acc",
-        "label": "POP ACC",
-        "code": "POP ACC",
-        "kind": "stack",
-        "detail": "Restaura el acumulador A respetando el orden LIFO."
-      },
-      {
-        "id": "pop-psw",
-        "label": "POP PSW",
-        "code": "POP PSW",
-        "kind": "stack",
-        "detail": "Restaura PSW tras recuperar ACC."
-      },
-      {
-        "id": "reti",
-        "label": "RETI",
+        "id": "e-reti",
+        "label": "Retornar restaurando prioridad del ADC",
         "code": "RETI",
-        "kind": "return",
-        "detail": "Retorna al programa principal y libera el nivel de prioridad alto."
+        "kind": "return"
       },
       {
-        "id": "bug-ret",
-        "label": "RET (en lugar de RETI)",
-        "code": "RET",
-        "kind": "bug",
-        "detail": "Error grave: no libera el nivel de prioridad en el controlador de interrupciones."
+        "id": "e-bug-clr-ea",
+        "label": "Dejar EA = 0 al salir de la ISR",
+        "code": "CLR EA ; RET",
+        "kind": "bug"
       },
       {
-        "id": "bug-pop-order",
-        "label": "POP PSW antes que POP ACC",
-        "code": "POP PSW ; POP ACC",
-        "kind": "bug",
-        "detail": "Error LIFO: intercambia los valores restaurados de ACC y PSW."
-      },
-      {
-        "id": "bug-clr-ea",
-        "label": "CLR EA sin restaurar",
-        "code": "CLR EA",
-        "kind": "bug",
-        "detail": "Error de concurrencia: deshabilita globalmente todas las interrupciones y rompe el anidamiento de prioridades."
+        "id": "e-bug-wait",
+        "label": "Bucle infinito dentro de la ISR",
+        "code": "WAIT: SJMP WAIT",
+        "kind": "bug"
       }
     ],
-    "expectedOrder": [
-      "vec-000b",
-      "ljmp-isr",
-      "push-psw",
-      "push-acc",
-      "handle-t0",
-      "clear-tf0",
-      "pop-acc",
-      "pop-psw",
-      "reti"
-    ],
-    "distractorIds": [
-      "bug-ret",
-      "bug-pop-order",
-      "bug-clr-ea"
-    ]
+    "expectedOrder": ["e-vec", "e-push", "e-act", "e-pop", "e-reti"],
+    "distractorIds": ["e-bug-clr-ea", "e-bug-wait"]
   }
 }

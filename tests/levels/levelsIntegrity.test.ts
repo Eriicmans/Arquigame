@@ -5,15 +5,18 @@ import { validatePuzzleTasks } from '@/engine/puzzleValidator';
 import { buildReferenceWires } from '@/store/useGameStore';
 
 describe('Integridad de /niveles (Esquemas Zod + Simulación de Solución de Referencia)', () => {
-  it('el manifest.json es válido y lista los 5 niveles', () => {
+  it('el manifest.json es válido y lista los 5 niveles disponibles', () => {
     const manifest = loadManifest();
     expect(manifest.levels).toHaveLength(5);
-    expect(manifest.levels[0].status).toBe('available');
+    for (const lvl of manifest.levels) {
+      expect(lvl.status).toBe('available');
+      expect(lvl.sublevelIds.length).toBeGreaterThanOrEqual(3);
+    }
   });
 
-  it('todos los subniveles (Niveles 1 a 5) cargan sin error y sus soluciones de referencia pasan al 100 %', () => {
+  it('todos los subniveles (1.1 a 5.3) cargan sin error y su solución de referencia pasa al 100 %', () => {
     const sublevels = loadAllSublevels();
-    expect(sublevels.length).toBeGreaterThanOrEqual(16);
+    expect(sublevels.length).toBe(16);
 
     for (const sub of sublevels) {
       if (sub.circuit && sub.memoryMapTask) {
@@ -43,29 +46,31 @@ describe('Integridad de /niveles (Esquemas Zod + Simulación de Solución de Ref
         const examRes = validateSublevel(sub, sub.circuit.components, refWires, examTable, 'exam');
         expect(examRes.passed, `Subnivel ${sub.id} falló en modo examen`).toBe(true);
       } else {
-        const registerValues: Record<string, number[]> = {};
-        const questionAnswers: Record<string, number> = {};
+        const regValues: Record<string, number[]> = {};
         if (sub.registerTask) {
           for (const reg of sub.registerTask.registers) {
             const arr = new Array(8).fill(0);
             for (const b of reg.bits) {
               arr[b.bit] = b.expected ?? b.initial ?? 0;
             }
-            registerValues[reg.id] = arr;
+            regValues[reg.id] = arr;
           }
+        }
+        const qAnswers: Record<string, number> = {};
+        if (sub.registerTask) {
           for (const q of sub.registerTask.questions) {
-            questionAnswers[q.id] = q.correctIndex;
+            qAnswers[q.id] = q.correctIndex;
           }
         }
         const flowOrder = sub.flowchartTask?.expectedOrder ?? [];
         const pRes = validatePuzzleTasks(
           sub.registerTask,
           sub.flowchartTask,
-          registerValues,
-          questionAnswers,
+          regValues,
+          qAnswers,
           flowOrder
         );
-        expect(pRes.passed, `Subnivel ${sub.id} falló validación de registros/flujo`).toBe(true);
+        expect(pRes.passed, `Subnivel ${sub.id} falló validación de puzzle`).toBe(true);
       }
     }
   });

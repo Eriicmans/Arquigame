@@ -4,22 +4,22 @@
   "order": 1,
   "difficulty": "tutorial",
   "assistMode": "guided",
-  "title": "Subnivel 4.1 · Habilitación en IEN0 y Vectores (80C552)",
-  "subtitle": "Configuración de interrupciones con EA, ET0 y EX0 y direcciones de vector en memoria de programa",
-  "sourceRef": "3_interrupciones.pdf + AdC - Teoria 03.02 es Interrupciones 2024-10-04 - sin soluciones.pdf",
+  "title": "Subnivel 4.1 · Habilitación IEN0 y Vectores",
+  "subtitle": "Configurar EA, EX0 y ET0 en IEN0 (A8h) y reconocer las direcciones vectorizadas",
+  "sourceRef": "Basado en 3_interrupciones.pdf y AdC - Teoria 03.02 es Interrupciones",
   "mechanics": ["registers"],
   "briefing": {
-    "statement": "En el microcontrolador 80C552, la habilitación de las fuentes de interrupción clásicas (externas, temporizadores 0 y 1, puerto serie UART, I²C y ADC) se controla mediante el registro SFR IEN0 (dirección A8h, direccionable bit a bit). Para que cualquier interrupción sea atendida, es imprescindible activar el habilitador global EA (bit 7) además del bit individual de cada periférico. Configura IEN0 para habilitar únicamente Timer 0 (ET0) y la interrupción externa INT0 (EX0), manteniendo el resto deshabilitadas, y responde a las preguntas sobre la tabla de vectores de interrupción.",
+    "statement": "En el 80C552 las interrupciones se habilitan en dos niveles: cada fuente individual y el habilitador global EA (bit 7 de IEN0). Configura el registro IEN0 (dirección A8h) para habilitar la interrupción externa 0 (EX0) y la del Timer 0 (ET0), manteniendo deshabilitadas el resto de fuentes.",
     "objectives": [
-      "Activa el bit global EA (b7) y los habilitadores individuales ET0 (b1) y EX0 (b0) en el registro IEN0 (A8h).",
-      "Mantén a 0 el resto de bits de IEN0 (EX1, ET1, ES0, ES1, EAD) para evitar disparos espurios.",
-      "Identifica las direcciones fijas de los vectores de interrupción EX0, ET0, EX1 y ET1 en la memoria de programa."
+      "Activa el bit global EA = 1 en IEN0 (sin EA=1 ninguna interrupción salta).",
+      "Activa únicamente EX0 = 1 (bit 0) y ET0 = 1 (bit 1), dejando el resto a 0.",
+      "Identifica las direcciones de vectorización en memoria de programa para EX0 y ET0."
     ],
-    "mermaid": "flowchart LR\n  EXT0[\"INT0 (EX0 = 1)\"] --> GATE[\"Puerta AND Global (EA = 1)\"]\n  T0[\"Timer 0 (ET0 = 1)\"] --> GATE\n  GATE -->|\"0003h (EX0)\"| VEC0[\"Vector EX0: 0003h\"]\n  GATE -->|\"000Bh (ET0)\"| VEC1[\"Vector ET0: 000Bh\"]",
+    "mermaid": "flowchart LR\n  SRC[\"EX0 (0003h) / ET0 (000Bh)\"] -->|\"Habilitador local\"| EA[\"EA = 1 (IEN0.7)\"]\n  EA -->|\"Salto hardware\"| VEC[\"Vector ISR en Flash/EPROM\"]",
     "hints": [
-      "El registro IEN0 (A8h) tiene esta distribución de bits (b7..b0): EA | EAD | ES1 | ES0 | ET1 | EX1 | ET0 | EX0.",
-      "Para habilitar solo EX0 (b0), ET0 (b1) y EA (b7), el valor binario es 1000 0011b (83h).",
-      "En la familia 8051/80C552, los vectores de interrupción comienzan en 0003h (EX0) y están separados exactamente 8 bytes entre sí (+8h): 0003h, 000Bh, 0013h, 001Bh..."
+      "En IEN0 (A8h): b7=EA, b6=EAD (ADC), b5=ES1, b4=ES0, b3=ET1, b2=EX1, b1=ET0, b0=EX0.",
+      "Para habilitar EX0 y ET0 junto con EA, el valor hexadecimal resultante en IEN0 es 0x83 (1000 0011b).",
+      "Los vectores del 80C51/80C552 están espaciados cada 8 bytes: Reset 0000h, EX0 0003h, ET0 000Bh, EX1 0013h, ET1 001Bh."
     ]
   },
   "registerTask": {
@@ -27,116 +27,39 @@
       {
         "id": "ien0",
         "name": "IEN0",
-        "addressHex": "A8h",
-        "purpose": "Interrupt Enable 0: habilitación global (EA) y de las interrupciones externas, Timer 0/1, UART, I²C y ADC.",
+        "addressHex": "0xA8",
+        "purpose": "Interrupt Enable 0 — Habilitación global y de fuentes básicas",
         "bits": [
-          {
-            "bit": 0,
-            "name": "EX0",
-            "description": "Habilita la interrupción externa 0 (pin INT0, vector 0003h).",
-            "expected": 1,
-            "initial": 0
-          },
-          {
-            "bit": 1,
-            "name": "ET0",
-            "description": "Habilita la interrupción por desbordamiento del Timer 0 (TF0, vector 000Bh).",
-            "expected": 1,
-            "initial": 0
-          },
-          {
-            "bit": 2,
-            "name": "EX1",
-            "description": "Habilita la interrupción externa 1 (pin INT1, vector 0013h).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 3,
-            "name": "ET1",
-            "description": "Habilita la interrupción por desbordamiento del Timer 1 (TF1, vector 001Bh).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 4,
-            "name": "ES0",
-            "description": "Habilita la interrupción del puerto serie 0 / UART (SIO0).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 5,
-            "name": "ES1",
-            "description": "Habilita la interrupción del puerto serie 1 / I²C (SIO1).",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 6,
-            "name": "EAD",
-            "description": "Habilita la interrupción de fin de conversión del ADC.",
-            "expected": 0,
-            "initial": 0
-          },
-          {
-            "bit": 7,
-            "name": "EA",
-            "description": "Habilitación global de interrupciones (1 = habilitadas, 0 = todas inhibidas).",
-            "expected": 1,
-            "initial": 0
-          }
+          { "bit": 7, "name": "EA", "description": "Enable All: 1 habilita interrupciones globalmente", "expected": 1, "initial": 0 },
+          { "bit": 6, "name": "EAD", "description": "Habilita interrupción del convertidor ADC", "expected": 0, "initial": 0 },
+          { "bit": 5, "name": "ES1", "description": "Habilita interrupción del puerto serie I2C (SIO1)", "expected": 0, "initial": 0 },
+          { "bit": 4, "name": "ES0", "description": "Habilita interrupción de UART (SIO0)", "expected": 0, "initial": 0 },
+          { "bit": 3, "name": "ET1", "description": "Habilita interrupción por desbordamiento del Timer 1", "expected": 0, "initial": 0 },
+          { "bit": 2, "name": "EX1", "description": "Habilita interrupción externa 1 (/INT1)", "expected": 0, "initial": 0 },
+          { "bit": 1, "name": "ET0", "description": "Habilita interrupción por desbordamiento del Timer 0", "expected": 1, "initial": 0 },
+          { "bit": 0, "name": "EX0", "description": "Habilita interrupción externa 0 (/INT0)", "expected": 1, "initial": 0 }
         ]
       }
     ],
     "questions": [
       {
-        "id": "q-vec-ex0",
-        "prompt": "¿A qué dirección de memoria de programa salta la CPU del 80C552 al atender la interrupción externa 0 (EX0)?",
+        "id": "q-vec-et0",
+        "prompt": "¿A qué dirección de memoria de programa salta automáticamente la CPU cuando se dispara ET0 (Timer 0)?",
+        "options": ["0003h", "000Bh", "0013h", "001Bh"],
+        "correctIndex": 1,
+        "explanation": "EX0 vectoriza en 0003h, ET0 en 000Bh, EX1 en 0013h y ET1 en 001Bh."
+      },
+      {
+        "id": "q-vec-gap",
+        "prompt": "Como solo hay 8 bytes entre 0003h y 000Bh, ¿qué instrucción se coloca habitualmente en el vector para no invadir el siguiente?",
         "options": [
-          "0000h",
-          "0003h",
-          "000Bh",
-          "0013h"
+          "Escribir toda la ISR directamente en 0003h",
+          "Colocar un salto (LJMP / AJMP) hacia la rutina ISR real",
+          "Colocar un RET y esperar al siguiente ciclo",
+          "Poner NOPs hasta 0020h"
         ],
         "correctIndex": 1,
-        "explanation": "0000h es el vector de Reset. La primera interrupción (EX0 / INT0) tiene su vector inmediatamente después, en 0003h."
-      },
-      {
-        "id": "q-vec-et0",
-        "prompt": "¿Cuál es la dirección del vector de interrupción del Timer 0 (ET0 / TF0)?",
-        "options": [
-          "0003h",
-          "0008h",
-          "000Bh",
-          "001Bh"
-        ],
-        "correctIndex": 2,
-        "explanation": "Los vectores están espaciados cada 8 bytes: 0003h + 0008h = 000Bh para Timer 0 (TF0)."
-      },
-      {
-        "id": "q-vec-ex1",
-        "prompt": "¿Cuál es la dirección del vector de interrupción externa 1 (EX1 / INT1)?",
-        "options": [
-          "000Bh",
-          "0010h",
-          "0013h",
-          "001Bh"
-        ],
-        "correctIndex": 2,
-        "explanation": "Sumando 8 bytes al vector de Timer 0 (000Bh + 0008h) se obtiene 0013h para EX1."
-      },
-      {
-        "id": "q-vec-et1",
-        "prompt": "¿Cuál es la dirección del vector de interrupción del Timer 1 (ET1 / TF1)?",
-        "options": [
-          "0013h",
-          "0018h",
-          "001Bh",
-          "0023h"
-        ],
-        "correctIndex": 2,
-        "explanation": "Sumando 8 bytes al vector de EX1 (0013h + 0008h) se obtiene 001Bh para Timer 1 (TF1)."
+        "explanation": "Al haber solo 8 bytes por vector, se coloca un LJMP ISR_XX para saltar a una zona libre de código."
       }
     ]
   }
